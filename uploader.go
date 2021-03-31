@@ -7,16 +7,35 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 type fileUploader struct {
-	client *http.Client
+	HTTPClient    *http.Client
+	SigningMethod jwt.SigningMethod
+	SigningKey    interface{}
+	TokenLifetime time.Duration
+	DeviceID      string
 }
 
-func newFileUploader(client *http.Client) *fileUploader {
-	return &fileUploader{
-		client: client,
+func (u *fileUploader) createToken() (string, error) {
+	type jwtClaims struct {
+		DeviceID string `json:"deviceId"`
+		jwt.StandardClaims
 	}
+	now := time.Now()
+	token := jwt.NewWithClaims(u.SigningMethod, &jwtClaims{
+		DeviceID: u.DeviceID,
+		StandardClaims: jwt.StandardClaims{
+			IssuedAt:  now.Unix(),
+			ExpiresAt: now.Add(u.TokenLifetime).Unix(),
+			Audience:  projectID,
+		},
+	})
+	signedToken, err := token.SignedString(u.SigningKey)
+	return signedToken, err
 }
 
 func uploadURLErr(err error) error {
@@ -28,7 +47,12 @@ func (u *fileUploader) requestUploadURL(ctx context.Context, endpoint string) (s
 	if err != nil {
 		return "", uploadURLErr(err)
 	}
-	resp, err := u.client.Do(req)
+	token, err := u.createToken()
+	if err != nil {
+		return "", uploadURLErr(err)
+	}
+	req.Header.Add("Authorization", "Bearer "+token)
+	resp, err := u.HTTPClient.Do(req)
 	if err != nil {
 		return "", uploadURLErr(err)
 	}
@@ -55,7 +79,7 @@ func (u *fileUploader) uploadFile(ctx context.Context, url string, file io.Reade
 	if err != nil {
 		return uploadFileErr(err)
 	}
-	resp, err := u.client.Do(req)
+	resp, err := u.HTTPClient.Do(req)
 	if err != nil {
 		return uploadFileErr(err)
 	}
