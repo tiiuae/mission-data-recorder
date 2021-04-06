@@ -43,7 +43,7 @@ func uploadURLErr(err error) error {
 }
 
 func (u *fileUploader) requestUploadURL(ctx context.Context, endpoint string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, nil)
 	if err != nil {
 		return "", uploadURLErr(err)
 	}
