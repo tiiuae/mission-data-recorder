@@ -18,11 +18,11 @@ import (
 
 var (
 	projectID           = flag.String("project-id", "auto-fleet-mgnt", "Google Cloud project id")
-	deviceID            = flag.String("device-id", "", "The provisioned device id")
-	backendURL          = flag.String("backend-url", "", "URL to the backend server")
+	deviceID            = flag.String("device-id", "", "The provisioned device id (required)")
+	backendURL          = flag.String("backend-url", "", "URL to the backend server (required)")
 	privateKeyPath      = flag.String("private-key", "/enclave/rsa_private.pem", "The private key used for authentication")
 	privateKeyAlgorithm = flag.String("key-algorithm", "RS256", "Supported values are RS256 and ES256")
-	topics              = flag.String("topics", "*", "Comma-separated list of topics to record. Special value '*' means everything.")
+	topics              = flag.String("topics", "*", `Comma-separated list of topics to record. Special value "*" means everything.`)
 	destDir             = flag.String("dest-dir", ".", "The directory where recordings are stored")
 	sizeThreshold       = flag.Int("size-threshold", 10*1000*1000, "Rosbags will be split when this size in bytes is reached")
 )
