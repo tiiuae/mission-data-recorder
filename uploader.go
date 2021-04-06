@@ -18,6 +18,7 @@ type fileUploader struct {
 	SigningKey    interface{}
 	TokenLifetime time.Duration
 	DeviceID      string
+	ProjectID     string
 }
 
 func (u *fileUploader) createToken() (string, error) {
@@ -31,7 +32,7 @@ func (u *fileUploader) createToken() (string, error) {
 		StandardClaims: jwt.StandardClaims{
 			IssuedAt:  now.Unix(),
 			ExpiresAt: now.Add(u.TokenLifetime).Unix(),
-			Audience:  projectID,
+			Audience:  u.ProjectID,
 		},
 	})
 	signedToken, err := token.SignedString(u.SigningKey)
