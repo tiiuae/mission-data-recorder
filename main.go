@@ -57,7 +57,7 @@ func uploadBag(ctx context.Context, bagPath string) {
 		return
 	}
 	defer f.Close()
-	uploadURL, err := uploader.requestUploadURL(ctx, *backendURL)
+	uploadURL, err := uploader.requestUploadURL(ctx, *backendURL+"/generate-url")
 	if err != nil {
 		logUploadBagErr(bagPath, err)
 		return
