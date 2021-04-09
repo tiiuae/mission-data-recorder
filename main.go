@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -68,7 +69,13 @@ func uploadBag(ctx context.Context, bagPath string) {
 	}
 	log.Printf("bag '%s' uploaded successfully", filepath.Base(bagPath))
 	if err = os.Remove(bagPath); err != nil {
-		log.Printf("failed to remove uploaded bag '%s': %s", bagPath, err.Error())
+		log.Printf("failed to remove '%s': %s", bagPath, err.Error())
+	}
+	if err = os.Remove(bagPath + "-wal"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("failed to remove '%s-wal': %s", bagPath, err.Error())
+	}
+	if err = os.Remove(bagPath + "-shm"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("failed to remove '%s-shm': %s", bagPath, err.Error())
 	}
 }
 
