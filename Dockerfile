@@ -6,3 +6,6 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . ./
 RUN go build -o mission-data-recorder
+
+FROM scratch
+COPY --from=builder /build/mission-data-recorder /build/
