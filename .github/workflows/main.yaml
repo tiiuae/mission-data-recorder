@@ -28,6 +28,7 @@ jobs:
 
       - name: Build Debian package
         run: |
+          set -exu
           ./packaging/package.sh \
             -m "$(realpath .)" \
             -v 1.0.0 \
