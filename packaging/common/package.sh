@@ -201,7 +201,7 @@ EOF
 		### create debian package
 		debfilename=${pkg_name}_${version}_${arch}.deb
 		echo "${debfilename}"
-		fakeroot dpkg-deb --build ${build_dir} $mod_dir/../${debfilename}
+		fakeroot dpkg-deb --build ${build_dir} $mod_dir/${debfilename}
 	fi
 fi
 
