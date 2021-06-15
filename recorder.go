@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -28,9 +30,13 @@ type missionDataRecorder struct {
 
 	// Directory where bags will be stored. This field must not be empty.
 	Dir string
+
+	// This is the subdirectory of Dir currently used by the recorder.
+	currentDir string
 }
 
 func (r *missionDataRecorder) Start(ctx context.Context, onBagReady onBagReady) error {
+	r.currentDir = filepath.Join(r.Dir, time.Now().UTC().Format(time.RFC3339Nano))
 	watcher, err := r.startWatcher(ctx, onBagReady)
 	if err != nil {
 		return fmt.Errorf("failed to start file watching: %w", err)
@@ -57,7 +63,9 @@ func (r *missionDataRecorder) Start(ctx context.Context, onBagReady onBagReady) 
 			}
 		}
 	}()
-	if err := cmd.Wait(); err != nil {
+	var exitErr *exec.ExitError
+	err = cmd.Wait()
+	if err != nil && !(errors.As(err, &exitErr) && exitErr.ExitCode() == 2) {
 		return fmt.Errorf("an error occurred during recording: %w", err)
 	}
 	stopped <- struct{}{}
@@ -72,7 +80,7 @@ func (r *missionDataRecorder) newCommand() *exec.Cmd {
 	if rosCmd == "" {
 		rosCmd = "ros2"
 	}
-	args := []string{"bag", "record", "--output", r.Dir}
+	args := []string{"bag", "record", "--output", r.currentDir}
 	if r.SizeThreshold > 0 {
 		args = append(args, "--max-bag-size", strconv.Itoa(r.SizeThreshold))
 	}
@@ -91,15 +99,15 @@ func (r *missionDataRecorder) newCommand() *exec.Cmd {
 func (r *missionDataRecorder) startWatcher(
 	ctx context.Context, onBagReady onBagReady,
 ) (*fsnotify.Watcher, error) {
-	// The watcher first watches the parent directory of r.Dir to detect the
-	// creation of r.Dir by the ros2 bag record command. Then the parent is
-	// unwatched and r.Dir is added to the watchlist.
+	// The watcher first watches the parent directory of r.currentDir to detect the
+	// creation of r.currentDir by the ros2 bag record command. Then the parent is
+	// unwatched and r.currentDir is added to the watchlist.
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
 	go func() {
-		cleanedDir := filepath.Clean(r.Dir)
+		cleanedDir := filepath.Clean(r.currentDir)
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -108,8 +116,8 @@ func (r *missionDataRecorder) startWatcher(
 				}
 				if event.Op&fsnotify.Create == fsnotify.Create {
 					if filepath.Clean(event.Name) == cleanedDir {
-						logFileWatchErr(watcher.Remove(filepath.Dir(r.Dir)))
-						logFileWatchErr(watcher.Add(r.Dir))
+						logFileWatchErr(watcher.Remove(filepath.Dir(r.currentDir)))
+						logFileWatchErr(watcher.Add(r.currentDir))
 					} else {
 						r.notifyIfBagReady(ctx, onBagReady, event.Name)
 					}
@@ -124,7 +132,7 @@ func (r *missionDataRecorder) startWatcher(
 			}
 		}
 	}()
-	if err = watcher.Add(filepath.Dir(r.Dir)); err != nil {
+	if err = watcher.Add(filepath.Dir(r.currentDir)); err != nil {
 		return nil, err
 	}
 	return watcher, nil

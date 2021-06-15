@@ -10,13 +10,14 @@ on:
 jobs:
   tii-mission-data-recorder-deb:
     runs-on: ubuntu-latest
+    container: ros:foxy-ros-core
     steps:
       - uses: actions/checkout@v2
 
       - uses: actions/setup-go@v2
         with:
           go-version: 1.16
-      
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -24,7 +25,20 @@ jobs:
             build-essential \
             debhelper \
             dh-make \
-            fakeroot
+            fakeroot \
+            g++ \
+            gcc \
+            ros-foxy-rclcpp \
+            ros-foxy-ros2cli \
+            ros-foxy-ros2cli \
+            ros-foxy-rosbag2-cpp \
+            ros-foxy-rosbag2-storage \
+            ros-foxy-std-msgs
+
+      - name: Run tests
+        run: |
+          . /opt/ros/foxy/setup.sh
+          go test ./...
 
       - name: Build Debian package
         run: |
