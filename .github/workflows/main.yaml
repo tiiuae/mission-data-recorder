@@ -30,9 +30,8 @@ jobs:
             gcc \
             ros-foxy-rclcpp \
             ros-foxy-ros2cli \
-            ros-foxy-ros2cli \
-            ros-foxy-rosbag2-cpp \
-            ros-foxy-rosbag2-storage \
+            ros-foxy-ros2bag \
+            ros-foxy-rosbag2* \
             ros-foxy-std-msgs
 
       - name: Run tests
