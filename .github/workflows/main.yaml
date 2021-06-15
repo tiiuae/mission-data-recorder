@@ -28,11 +28,14 @@ jobs:
             fakeroot \
             g++ \
             gcc \
-            ros-foxy-rclcpp \
-            ros-foxy-ros2cli \
             ros-foxy-ros2bag \
-            ros-foxy-rosbag2* \
-            ros-foxy-std-msgs
+            ros-foxy-rosbag2 \
+            ros-foxy-rosbag2-compression \
+            ros-foxy-rosbag2-converter-default-plugins \
+            ros-foxy-rosbag2-cpp \
+            ros-foxy-rosbag2-storage \
+            ros-foxy-rosbag2-storage-default-plugins \
+            ros-foxy-rosbag2-transport
 
       - name: Run tests
         run: |
