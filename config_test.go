@@ -10,6 +10,7 @@ import (
 
 	"github.com/bradleyjkemp/cupaloy/v2"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/tiiuae/mission-data-recorder/internal"
 	std_msgs_msg "github.com/tiiuae/rclgo-msgs/std_msgs/msg"
 	"github.com/tiiuae/rclgo/pkg/rclgo"
 	"gopkg.in/yaml.v3"
@@ -22,7 +23,7 @@ func readRecordings(dir string) ([]interface{}, error) {
 	}
 	var recordings []interface{}
 	for _, bag := range bags {
-		recordings = append(recordings, readRosbag(bag)...)
+		recordings = append(recordings, internal.ReadRosbag(bag)...)
 	}
 	return recordings, nil
 }

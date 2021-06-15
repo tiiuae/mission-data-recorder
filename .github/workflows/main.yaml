@@ -28,6 +28,7 @@ jobs:
             fakeroot \
             g++ \
             gcc \
+            git \
             ros-foxy-ros2bag \
             ros-foxy-rosbag2 \
             ros-foxy-rosbag2-compression \

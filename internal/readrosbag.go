@@ -1,4 +1,4 @@
-package main
+package internal
 
 /*
 #cgo CXXFLAGS: -I /opt/ros/foxy/include -std=c++17
@@ -13,11 +13,11 @@ package main
 import "C"
 import "unsafe"
 
-type rosbagData struct {
+type RosbagData struct {
 	topic, data string
 }
 
-func readRosbag(path string) []interface{} {
+func ReadRosbag(path string) []interface{} {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
 	cdata := C.readRosbag(cpath)
@@ -25,7 +25,7 @@ func readRosbag(path string) []interface{} {
 	cmsgs := (*[1 << 31]C.RosbagMsg)(unsafe.Pointer(cdata.data))
 	data := make([]interface{}, cdata.len)
 	for i := range data {
-		data[i] = rosbagData{
+		data[i] = RosbagData{
 			topic: C.GoString(cmsgs[i].topic),
 			data:  C.GoString(cmsgs[i].data),
 		}
