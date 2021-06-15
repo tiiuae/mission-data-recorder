@@ -1,0 +1,20 @@
+(internal.RosbagData) {
+  topic: (string) (len=7) "/test/a",
+  data: (string) (len=1) "a"
+}
+(internal.RosbagData) {
+  topic: (string) (len=7) "/test/a",
+  data: (string) (len=14) "a after update"
+}
+(internal.RosbagData) {
+  topic: (string) (len=7) "/test/b",
+  data: (string) (len=14) "b after update"
+}
+(internal.RosbagData) {
+  topic: (string) (len=34) "/test/mission_data_recorder/config",
+  data: (string) (len=7) "topics:"
+}
+(internal.RosbagData) {
+  topic: (string) (len=7) "/test/b",
+  data: (string) (len=22) "b after starting again"
+}

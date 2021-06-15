@@ -3,4 +3,4 @@ Version: VERSION
 Maintainer: Jari Nippula <jarix@ssrc.tii.ae>
 Architecture: amd64
 Description: Mission data recorder for drone
-Depends: ca-certificates, libc6, ros-foxy-ros2cli
+Depends: ca-certificates, ros-foxy-ros-core, ros-foxy-ros2bag, ros-foxy-rosbag2
