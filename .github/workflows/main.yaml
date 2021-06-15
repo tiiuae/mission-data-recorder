@@ -38,11 +38,6 @@ jobs:
             ros-foxy-rosbag2-storage-default-plugins \
             ros-foxy-rosbag2-transport
 
-      - name: Run tests
-        run: |
-          . /opt/ros/foxy/setup.sh
-          go test ./...
-
       - name: Build Debian package
         run: |
           set -exu
