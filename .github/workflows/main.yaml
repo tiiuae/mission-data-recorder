@@ -10,7 +10,6 @@ on:
 jobs:
   tii-mission-data-recorder-deb:
     runs-on: ubuntu-latest
-    container: ros:foxy-ros-core
     steps:
       - uses: actions/checkout@v2
 
@@ -20,6 +19,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo bash -c 'curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -'
+          sudo bash -c "echo \"deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main\" > /etc/apt/sources.list.d/ros2-latest.list"
           apt-get update
           apt-get install -y --no-install-recommends \
             build-essential \
@@ -30,6 +31,7 @@ jobs:
             gcc \
             git \
             curl \
+            ros-foxy-ros-core \
             ros-foxy-ros2bag \
             ros-foxy-rosbag2 \
             ros-foxy-rosbag2-compression \
@@ -37,12 +39,10 @@ jobs:
             ros-foxy-rosbag2-cpp \
             ros-foxy-rosbag2-storage \
             ros-foxy-rosbag2-storage-default-plugins \
-            ros-foxy-rosbag2-transport tree
+            ros-foxy-rosbag2-transport
 
       - name: Build Debian package
         run: |
-          pwd
-          tree
           set -exu
           ./packaging/common/package.sh \
             -m "$(realpath .)" \
