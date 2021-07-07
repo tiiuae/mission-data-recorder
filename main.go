@@ -28,6 +28,7 @@ var (
 	topics              = flag.String("topics", "*", `Comma-separated list of topics to record. Special value "*" means everything. If empty, recording is not started.`)
 	destDir             = flag.String("dest-dir", ".", "The directory where recordings are stored")
 	sizeThreshold       = flag.Int("size-threshold", defaultSizeThreshold, "Rosbags will be split when this size in bytes is reached")
+	extraArgs           = flag.String("extra-args", "", `Comma-separated list of extra arguments passed to ros bag record command after all other arguments passed to the command by this program.`)
 )
 
 func loadPrivateKey() (key interface{}, err error) {
@@ -44,6 +45,13 @@ func loadPrivateKey() (key interface{}, err error) {
 		err = fmt.Errorf("unsupported key algorithm: %s", *privateKeyAlgorithm)
 	}
 	return key, err
+}
+
+func parseCommaSeparatedList(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, ",")
 }
 
 var uploader fileUploader
@@ -111,7 +119,7 @@ func run() int {
 	if *topics == "*" {
 		initialConfig.RecordAllTopics = true
 	} else if *topics != "" {
-		initialConfig.Topics = strings.Split(*topics, ",")
+		initialConfig.Topics = parseCommaSeparatedList(*topics)
 	}
 
 	configWatcher, err := newConfigWatcher(
@@ -124,6 +132,7 @@ func run() int {
 		log.Println("failed to create config watcher:", err)
 		return 1
 	}
+	configWatcher.Recorder.ExtraArgs = parseCommaSeparatedList(*extraArgs)
 	configWatcher.Recorder.Dir = *destDir
 	err = configWatcher.Start(ctx)
 	switch err {

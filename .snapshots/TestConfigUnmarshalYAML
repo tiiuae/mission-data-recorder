@@ -1,10 +1,11 @@
-([]struct { in string; c main.config; e error }) (len=11) {
+([]struct { in string; c main.config; e error }) (len=12) {
   (struct { in string; c main.config; e error }) {
     in: (string) "",
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 0
+      SizeThreshold: (int) 0,
+      ExtraArgs: ([]string) <nil>
     },
     e: (error) <nil>
   },
@@ -13,7 +14,8 @@
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 10000000
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>
     },
     e: (error) <nil>
   },
@@ -22,7 +24,8 @@
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 15000000
+      SizeThreshold: (int) 15000000,
+      ExtraArgs: ([]string) <nil>
     },
     e: (error) <nil>
   },
@@ -31,7 +34,8 @@
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 10000000
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>
     },
     e: (error) <nil>
   },
@@ -40,7 +44,8 @@
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 10000000
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>
     },
     e: (error) <nil>
   },
@@ -49,7 +54,8 @@
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) true,
-      SizeThreshold: (int) 16000000
+      SizeThreshold: (int) 16000000,
+      ExtraArgs: ([]string) <nil>
     },
     e: (error) <nil>
   },
@@ -58,7 +64,8 @@
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 10000000
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>
     },
     e: (*errors.errorString)('topics' must be an empty string, the string 'all' or a list of strings)
   },
@@ -70,19 +77,21 @@
         (string) (len=12) "/test_topic2"
       },
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 10000000
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>
     },
     e: (error) <nil>
   },
   (struct { in string; c main.config; e error }) {
-    in: (string) (len=66) "size-threshold: 16000000\ntopics:\n  - /test_topic1\n  - /test_topic2",
+    in: (string) (len=78) "size-threshold: 16000000\nextra-args:\ntopics:\n  - /test_topic1\n  - /test_topic2",
     c: (main.config) {
       Topics: ([]string) (len=2) {
         (string) (len=12) "/test_topic1",
         (string) (len=12) "/test_topic2"
       },
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 16000000
+      SizeThreshold: (int) 16000000,
+      ExtraArgs: ([]string) <nil>
     },
     e: (error) <nil>
   },
@@ -91,7 +100,8 @@
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 16000000
+      SizeThreshold: (int) 16000000,
+      ExtraArgs: ([]string) <nil>
     },
     e: (error) <nil>
   },
@@ -100,7 +110,21 @@
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 16000000
+      SizeThreshold: (int) 16000000,
+      ExtraArgs: ([]string) <nil>
+    },
+    e: (error) <nil>
+  },
+  (struct { in string; c main.config; e error }) {
+    in: (string) (len=67) "size-threshold: 16000000\nnon-existent-key:\nextra-args: [arg1, arg2]",
+    c: (main.config) {
+      Topics: ([]string) <nil>,
+      RecordAllTopics: (bool) false,
+      SizeThreshold: (int) 16000000,
+      ExtraArgs: ([]string) (len=2) {
+        (string) (len=4) "arg1",
+        (string) (len=4) "arg2"
+      }
     },
     e: (error) <nil>
   }

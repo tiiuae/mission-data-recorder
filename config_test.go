@@ -47,12 +47,16 @@ size-threshold: 16000000`},
   - /test_topic1
   - /test_topic2`},
 		{in: `size-threshold: 16000000
+extra-args:
 topics:
   - /test_topic1
   - /test_topic2`},
 		{in: `size-threshold: 16000000`},
 		{in: `size-threshold: 16000000
 non-existent-key:`},
+		{in: `size-threshold: 16000000
+non-existent-key:
+extra-args: [arg1, arg2]`},
 	}
 	for i := range data {
 		data[i].e = yaml.Unmarshal([]byte(data[i].in), &data[i].c)

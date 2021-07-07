@@ -28,6 +28,9 @@ type missionDataRecorder struct {
 	// SizeThreshold is non-positive the file is never split.
 	SizeThreshold int
 
+	// Extra arguments passed to ros bag record command.
+	ExtraArgs []string
+
 	// Directory where bags will be stored. This field must not be empty.
 	Dir string
 
@@ -90,6 +93,7 @@ func (r *missionDataRecorder) newCommand() *exec.Cmd {
 		args = append(args, "--")
 		args = append(args, r.Topics...)
 	}
+	args = append(args, r.ExtraArgs...)
 	cmd := exec.Command(rosCmd, args...)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr

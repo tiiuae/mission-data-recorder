@@ -22,6 +22,7 @@ type config struct {
 	Topics          []string
 	RecordAllTopics bool
 	SizeThreshold   int
+	ExtraArgs       []string
 }
 
 func (c *config) UnmarshalYAML(val *yaml.Node) error {
@@ -59,6 +60,20 @@ func (c *config) UnmarshalYAML(val *yaml.Node) error {
 		}
 	default:
 		return errors.New("'topics' must be an empty string, the string 'all' or a list of strings")
+	}
+	c.ExtraArgs = nil
+	switch args := data["extra-args"].(type) {
+	case nil:
+	case []interface{}:
+		for _, arg := range args {
+			if a, ok := arg.(string); ok {
+				c.ExtraArgs = append(c.ExtraArgs, a)
+			} else {
+				return errors.New("'extra-args' must be a list of strings")
+			}
+		}
+	default:
+		return errors.New("'extra-args' must be a list of strings")
 	}
 	return nil
 }
