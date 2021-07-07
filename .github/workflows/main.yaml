@@ -37,10 +37,12 @@ jobs:
             ros-foxy-rosbag2-cpp \
             ros-foxy-rosbag2-storage \
             ros-foxy-rosbag2-storage-default-plugins \
-            ros-foxy-rosbag2-transport
+            ros-foxy-rosbag2-transport tree
 
       - name: Build Debian package
         run: |
+          pwd
+          tree
           set -exu
           ./packaging/common/package.sh \
             -m "$(realpath .)" \
