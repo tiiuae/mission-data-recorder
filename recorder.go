@@ -39,6 +39,9 @@ type missionDataRecorder struct {
 }
 
 func (r *missionDataRecorder) Start(ctx context.Context, onBagReady onBagReady) error {
+	if err := os.MkdirAll(r.Dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", r.Dir, err)
+	}
 	r.currentDir = filepath.Join(r.Dir, time.Now().UTC().Format(time.RFC3339Nano))
 	watcher, err := r.startWatcher(ctx, onBagReady)
 	if err != nil {
