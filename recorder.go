@@ -90,13 +90,13 @@ func (r *missionDataRecorder) newCommand() *exec.Cmd {
 	if r.SizeThreshold > 0 {
 		args = append(args, "--max-bag-size", strconv.Itoa(r.SizeThreshold))
 	}
+	args = append(args, r.ExtraArgs...)
 	if len(r.Topics) == 0 {
 		args = append(args, "--all")
 	} else {
 		args = append(args, "--")
 		args = append(args, r.Topics...)
 	}
-	args = append(args, r.ExtraArgs...)
 	cmd := exec.Command(rosCmd, args...)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
