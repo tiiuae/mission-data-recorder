@@ -13,37 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2
-        with:
-          go-version: 1.16
-
-      - name: Install dependencies
-        run: |
-          sudo bash -c 'curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -'
-          sudo bash -c "echo \"deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main\" > /etc/apt/sources.list.d/ros2-latest.list"
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            debhelper \
-            dh-make \
-            ros-foxy-ros-core \
-            ros-foxy-ros2bag \
-            ros-foxy-rosbag2 \
-            ros-foxy-rosbag2-compression \
-            ros-foxy-rosbag2-converter-default-plugins \
-            ros-foxy-rosbag2-cpp \
-            ros-foxy-rosbag2-storage \
-            ros-foxy-rosbag2-storage-default-plugins \
-            ros-foxy-rosbag2-transport
-
       - name: Build Debian package
         run: |
           set -exu
-          ./packaging/common/package.sh \
-            -m "$(realpath .)" \
-            -v 1.0.0 \
-            -c "$(git rev-parse HEAD)" \
-            -g "$(git log --date=format:%Y%m%d --pretty=~git%cd.%h -n 1)" \
-            -b "$GITHUB_RUN_NUMBER"
+          ./build.sh .
 
       - name: Install jfrog CLI tool
         env:
