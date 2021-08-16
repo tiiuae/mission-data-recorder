@@ -48,7 +48,7 @@ func (r *missionDataRecorder) Start(ctx context.Context, onBagReady onBagReady) 
 		return fmt.Errorf("failed to start file watching: %w", err)
 	}
 	defer watcher.Close()
-	cmd := r.newCommand()
+	cmd := r.newCommand(ctx)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start recorder: %w", err)
 	}
@@ -81,7 +81,7 @@ func (r *missionDataRecorder) Start(ctx context.Context, onBagReady onBagReady) 
 	return nil
 }
 
-func (r *missionDataRecorder) newCommand() *exec.Cmd {
+func (r *missionDataRecorder) newCommand(ctx context.Context) *exec.Cmd {
 	rosCmd := r.ROSCommand
 	if rosCmd == "" {
 		rosCmd = "ros2"
@@ -97,7 +97,7 @@ func (r *missionDataRecorder) newCommand() *exec.Cmd {
 		args = append(args, "--")
 		args = append(args, r.Topics...)
 	}
-	cmd := exec.Command(rosCmd, args...)
+	cmd := exec.CommandContext(ctx, rosCmd, args...)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	return cmd
