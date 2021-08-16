@@ -6,10 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"golang.org/x/sync/semaphore"
 )
 
 type fileUploader struct {
@@ -19,6 +23,7 @@ type fileUploader struct {
 	TokenLifetime time.Duration
 	DeviceID      string
 	ProjectID     string
+	UploadCount   *semaphore.Weighted
 }
 
 func (u *fileUploader) createToken() (string, error) {
@@ -93,4 +98,40 @@ func (u *fileUploader) uploadFile(ctx context.Context, url string, file io.Reade
 		return uploadFileErr(fmt.Errorf("HTTP error: code %d, %s", resp.StatusCode, msg))
 	}
 	return nil
+}
+
+func (u *fileUploader) uploadBagFile(ctx context.Context, bagPath string) error {
+	if err := u.UploadCount.Acquire(ctx, 1); err != nil {
+		return err
+	}
+	defer u.UploadCount.Release(1)
+	f, err := os.Open(bagPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	uploadURL, err := u.requestUploadURL(ctx, *backendURL+"/generate-url")
+	if err != nil {
+		return err
+	}
+	return u.uploadFile(ctx, uploadURL, f)
+}
+
+func (u *fileUploader) UploadBag(ctx context.Context, bagPath string) {
+	log.Printf("bag '%s' is ready", bagPath)
+	if err := u.uploadBagFile(ctx, bagPath); err != nil {
+		log.Printf("failed to upload bag '%s': %v", bagPath, err)
+		return
+	}
+	log.Printf("bag '%s' uploaded successfully", filepath.Base(bagPath))
+	matches, err := filepath.Glob(escapeMatchPattern(bagPath) + "*")
+	if err != nil {
+		log.Printf("failed to remove files for '%s': %v", bagPath, err)
+		return
+	}
+	for _, match := range matches {
+		if err = os.Remove(match); err != nil {
+			log.Printf("failed to remove '%s': %v", bagPath, err)
+		}
+	}
 }

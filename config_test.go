@@ -57,6 +57,9 @@ non-existent-key:`},
 		{in: `size-threshold: 16000000
 non-existent-key:
 extra-args: [arg1, arg2]`},
+		{in: `max-upload-count: -1`},
+		{in: `max-upload-count: 2.2`},
+		{in: `max-upload-count: 7`},
 	}
 	for i := range data {
 		data[i].e = yaml.Unmarshal([]byte(data[i].in), &data[i].c)
@@ -74,8 +77,10 @@ func TestConfigWatcher(t *testing.T) {
 
 		watcher *configWatcher
 
-		onBagReady = func(ctx context.Context, path string) {
-			log.Println("got bag", path)
+		newUploadFunc = func(int) onBagReady {
+			return func(ctx context.Context, path string) {
+				log.Println("got bag", path)
+			}
 		}
 
 		strMsg = func(s string) *std_msgs_msg.String {
@@ -117,9 +122,9 @@ func TestConfigWatcher(t *testing.T) {
 					SizeThreshold: defaultSizeThreshold,
 					Topics:        []string{"/test/a"},
 				},
-				onBagReady,
 			)
 			So(err, ShouldBeNil)
+			watcher.NewUploadFunc = newUploadFunc
 			watcher.Recorder.Dir = tempDir
 			go func() {
 				defer close(watcherStopped)

@@ -1,11 +1,12 @@
-([]struct { in string; c main.config; e error }) (len=12) {
+([]struct { in string; c main.config; e error }) (len=15) {
   (struct { in string; c main.config; e error }) {
     in: (string) "",
     c: (main.config) {
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 0,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 0
     },
     e: (error) <nil>
   },
@@ -15,7 +16,8 @@
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 10000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5
     },
     e: (error) <nil>
   },
@@ -25,7 +27,8 @@
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 15000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5
     },
     e: (error) <nil>
   },
@@ -35,7 +38,8 @@
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 10000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5
     },
     e: (error) <nil>
   },
@@ -45,7 +49,8 @@
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 10000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5
     },
     e: (error) <nil>
   },
@@ -55,7 +60,8 @@
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) true,
       SizeThreshold: (int) 16000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5
     },
     e: (error) <nil>
   },
@@ -65,7 +71,8 @@
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 10000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 0
     },
     e: (*errors.errorString)('topics' must be an empty string, the string 'all' or a list of strings)
   },
@@ -78,7 +85,8 @@
       },
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 10000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5
     },
     e: (error) <nil>
   },
@@ -91,7 +99,8 @@
       },
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 16000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5
     },
     e: (error) <nil>
   },
@@ -101,7 +110,8 @@
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 16000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5
     },
     e: (error) <nil>
   },
@@ -111,7 +121,8 @@
       Topics: ([]string) <nil>,
       RecordAllTopics: (bool) false,
       SizeThreshold: (int) 16000000,
-      ExtraArgs: ([]string) <nil>
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5
     },
     e: (error) <nil>
   },
@@ -124,7 +135,41 @@
       ExtraArgs: ([]string) (len=2) {
         (string) (len=4) "arg1",
         (string) (len=4) "arg2"
-      }
+      },
+      MaxUploadCount: (int) 5
+    },
+    e: (error) <nil>
+  },
+  (struct { in string; c main.config; e error }) {
+    in: (string) (len=20) "max-upload-count: -1",
+    c: (main.config) {
+      Topics: ([]string) <nil>,
+      RecordAllTopics: (bool) false,
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 0
+    },
+    e: (*errors.errorString)('max-upload-count' must be non-negative)
+  },
+  (struct { in string; c main.config; e error }) {
+    in: (string) (len=21) "max-upload-count: 2.2",
+    c: (main.config) {
+      Topics: ([]string) <nil>,
+      RecordAllTopics: (bool) false,
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 0
+    },
+    e: (*errors.errorString)('max-upload-count' must be an integer)
+  },
+  (struct { in string; c main.config; e error }) {
+    in: (string) (len=19) "max-upload-count: 7",
+    c: (main.config) {
+      Topics: ([]string) <nil>,
+      RecordAllTopics: (bool) false,
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 7
     },
     e: (error) <nil>
   }

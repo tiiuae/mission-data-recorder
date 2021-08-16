@@ -2,22 +2,24 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"golang.org/x/sync/semaphore"
 )
 
-const defaultSizeThreshold = 10_000_000
+const (
+	defaultSizeThreshold  = 10_000_000
+	defaultMaxUploadCount = 5
+)
 
 var (
 	projectID           = flag.String("project-id", "auto-fleet-mgnt", "Google Cloud project id")
@@ -29,6 +31,7 @@ var (
 	destDir             = flag.String("dest-dir", ".", "The directory where recordings are stored")
 	sizeThreshold       = flag.Int("size-threshold", defaultSizeThreshold, "Rosbags will be split when this size in bytes is reached")
 	extraArgs           = flag.String("extra-args", "", `Comma-separated list of extra arguments passed to ros bag record command after all other arguments passed to the command by this program.`)
+	maxUploadCount      = flag.Int("max-upload-count", defaultMaxUploadCount, "Maximum number of concurrent file uploads. If zero, file uploading is disabled.")
 )
 
 func loadPrivateKey() (key interface{}, err error) {
@@ -54,62 +57,48 @@ func parseCommaSeparatedList(s string) []string {
 	return strings.Split(s, ",")
 }
 
-var uploader fileUploader
+var matchPatternEscaper = strings.NewReplacer(
+	`*`, `\*`,
+	`?`, `\?`,
+	`[`, `\[`,
+	`\`, `\\`,
+)
 
-func logUploadBagErr(bagPath string, err error) {
-	log.Printf("failed to upload bag '%s': %s", bagPath, err.Error())
+func escapeMatchPattern(p string) string {
+	return matchPatternEscaper.Replace(p)
 }
 
-func uploadBag(ctx context.Context, bagPath string) {
-	log.Printf("bag '%s' is ready", bagPath)
-	f, err := os.Open(bagPath)
-	if err != nil {
-		logUploadBagErr(bagPath, err)
-		return
-	}
-	defer f.Close()
-	uploadURL, err := uploader.requestUploadURL(ctx, *backendURL+"/generate-url")
-	if err != nil {
-		logUploadBagErr(bagPath, err)
-		return
-	}
-	if err = uploader.uploadFile(ctx, uploadURL, f); err != nil {
-		logUploadBagErr(bagPath, err)
-		return
-	}
-	log.Printf("bag '%s' uploaded successfully", filepath.Base(bagPath))
-	if err = os.Remove(bagPath); err != nil {
-		log.Printf("failed to remove '%s': %s", bagPath, err.Error())
-	}
-	if err = os.Remove(bagPath + "-wal"); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Printf("failed to remove '%s-wal': %s", bagPath, err.Error())
-	}
-	if err = os.Remove(bagPath + "-shm"); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Printf("failed to remove '%s-shm': %s", bagPath, err.Error())
-	}
-}
+var privateKey interface{}
 
-func run() int {
-	flag.Parse()
-	privateKey, err := loadPrivateKey()
-	if err != nil {
-		log.Println(err)
-		return 1
+func newUploadFunc(maxUploadCount int) onBagReady {
+	if maxUploadCount <= 0 {
+		return func(context.Context, string) {}
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	uploader = fileUploader{
+	return (&fileUploader{
 		HTTPClient:    http.DefaultClient,
 		SigningMethod: jwt.GetSigningMethod(*privateKeyAlgorithm),
 		SigningKey:    privateKey,
 		TokenLifetime: 2 * time.Minute,
 		DeviceID:      *deviceID,
 		ProjectID:     *projectID,
+		UploadCount:   semaphore.NewWeighted(int64(maxUploadCount)),
+	}).UploadBag
+}
+
+func run() (err error) {
+	flag.Parse()
+	privateKey, err = loadPrivateKey()
+	if err != nil {
+		return err
 	}
 
-	initialConfig := &config{SizeThreshold: *sizeThreshold}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	initialConfig := &config{
+		SizeThreshold:  *sizeThreshold,
+		MaxUploadCount: *maxUploadCount,
+	}
 	if *topics == "*" {
 		initialConfig.RecordAllTopics = true
 	} else if *topics != "" {
@@ -120,24 +109,25 @@ func run() int {
 		*deviceID,
 		"mission_data_recorder",
 		initialConfig,
-		uploadBag,
 	)
 	if err != nil {
-		log.Println("failed to create config watcher:", err)
-		return 1
+		return fmt.Errorf("failed to create config watcher: %w", err)
 	}
+	configWatcher.NewUploadFunc = newUploadFunc
 	configWatcher.Recorder.ExtraArgs = parseCommaSeparatedList(*extraArgs)
 	configWatcher.Recorder.Dir = *destDir
 	err = configWatcher.Start(ctx)
 	switch err {
 	case nil, context.Canceled:
-		return 0
+		return nil
 	default:
-		log.Println("config watcher stopped with an error:", err)
-		return 1
+		return fmt.Errorf("config watcher stopped with an error: %w", err)
 	}
 }
 
 func main() {
-	os.Exit(run())
+	if err := run(); err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
 }

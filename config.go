@@ -23,6 +23,7 @@ type config struct {
 	RecordAllTopics bool
 	SizeThreshold   int
 	ExtraArgs       []string
+	MaxUploadCount  int
 }
 
 func (c *config) UnmarshalYAML(val *yaml.Node) error {
@@ -75,14 +76,28 @@ func (c *config) UnmarshalYAML(val *yaml.Node) error {
 	default:
 		return errors.New("'extra-args' must be a list of strings")
 	}
+	switch x := data["max-upload-count"].(type) {
+	case nil:
+		c.MaxUploadCount = defaultMaxUploadCount
+	case int:
+		if x < 0 {
+			return errors.New("'max-upload-count' must be non-negative")
+		}
+		c.MaxUploadCount = x
+	default:
+		return errors.New("'max-upload-count' must be an integer")
+	}
 	return nil
 }
+
+type uploadFuncFactory = func(int) onBagReady
 
 type configWatcher struct {
 	RetryDelay time.Duration
 
-	Recorder   missionDataRecorder
-	onBagReady onBagReady
+	Recorder      missionDataRecorder
+	NewUploadFunc uploadFuncFactory
+	uploadCount   int
 
 	nextConfig chan *config
 
@@ -99,12 +114,11 @@ type configWatcher struct {
 func newConfigWatcher(
 	ns, nodeName string,
 	initConfig *config,
-	onBagReady onBagReady,
 ) (w *configWatcher, err error) {
 	w = &configWatcher{
-		RetryDelay: 5 * time.Second,
-		nextConfig: make(chan *config, 1),
-		onBagReady: onBagReady,
+		RetryDelay:  5 * time.Second,
+		nextConfig:  make(chan *config, 1),
+		uploadCount: -1,
 	}
 	w.retryTimer = time.NewTimer(w.RetryDelay)
 	if !w.retryTimer.Stop() {
@@ -163,7 +177,10 @@ func (w *configWatcher) Start(ctx context.Context) error {
 
 func (w *configWatcher) startRecorder(ctx context.Context, config *config) {
 	if w.applyConfig(config) {
-		err := w.Recorder.Start(w.newRecorderContext(ctx), w.onBagReady)
+		err := w.Recorder.Start(
+			w.newRecorderContext(ctx),
+			newUploadFunc(config.MaxUploadCount),
+		)
 		switch err {
 		case nil, context.Canceled:
 		default:
@@ -206,6 +223,7 @@ func (w *configWatcher) stopRecording() {
 }
 
 func (w *configWatcher) applyConfig(config *config) (startRecorder bool) {
+	w.uploadCount = config.MaxUploadCount
 	w.Recorder.SizeThreshold = config.SizeThreshold
 	if config.RecordAllTopics {
 		w.Recorder.Topics = nil
