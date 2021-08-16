@@ -90,14 +90,17 @@ func (c *config) UnmarshalYAML(val *yaml.Node) error {
 	return nil
 }
 
-type uploadFuncFactory = func(int) onBagReady
+type uploadManagerInterface interface {
+	StartWorker(context.Context)
+	SetWorkerCount(int)
+	AddBag(context.Context, *bagMetadata)
+}
 
 type configWatcher struct {
 	RetryDelay time.Duration
 
 	Recorder      missionDataRecorder
-	NewUploadFunc uploadFuncFactory
-	uploadCount   int
+	UploadManager uploadManagerInterface
 
 	nextConfig chan *config
 
@@ -116,9 +119,8 @@ func newConfigWatcher(
 	initConfig *config,
 ) (w *configWatcher, err error) {
 	w = &configWatcher{
-		RetryDelay:  5 * time.Second,
-		nextConfig:  make(chan *config, 1),
-		uploadCount: -1,
+		RetryDelay: 5 * time.Second,
+		nextConfig: make(chan *config, 1),
 	}
 	w.retryTimer = time.NewTimer(w.RetryDelay)
 	if !w.retryTimer.Stop() {
@@ -176,11 +178,11 @@ func (w *configWatcher) Start(ctx context.Context) error {
 }
 
 func (w *configWatcher) startRecorder(ctx context.Context, config *config) {
-	if w.applyConfig(config) {
-		err := w.Recorder.Start(
-			w.newRecorderContext(ctx),
-			newUploadFunc(config.MaxUploadCount),
-		)
+	startRecorder := w.applyConfig(config)
+	ctx = w.newRecorderContext(ctx)
+	go w.UploadManager.StartWorker(ctx)
+	if startRecorder {
+		err := w.Recorder.Start(ctx, w.UploadManager.AddBag)
 		switch err {
 		case nil, context.Canceled:
 		default:
@@ -223,7 +225,7 @@ func (w *configWatcher) stopRecording() {
 }
 
 func (w *configWatcher) applyConfig(config *config) (startRecorder bool) {
-	w.uploadCount = config.MaxUploadCount
+	w.UploadManager.SetWorkerCount(config.MaxUploadCount)
 	w.Recorder.SizeThreshold = config.SizeThreshold
 	if config.RecordAllTopics {
 		w.Recorder.Topics = nil

@@ -7,15 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"golang.org/x/sync/semaphore"
 )
+
+var errEmptyBag = errors.New("bag is empty")
 
 type fileUploader struct {
 	HTTPClient    *http.Client
@@ -24,7 +23,6 @@ type fileUploader struct {
 	TokenLifetime time.Duration
 	DeviceID      string
 	ProjectID     string
-	UploadCount   *semaphore.Weighted
 }
 
 func (u *fileUploader) createToken(bagName string) (string, error) {
@@ -103,12 +101,13 @@ func (u *fileUploader) uploadFile(ctx context.Context, url string, file io.Reade
 	return nil
 }
 
-func (u *fileUploader) uploadBagFile(ctx context.Context, name, bagPath string) error {
-	if err := u.UploadCount.Acquire(ctx, 1); err != nil {
+func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
+	recordStartTime, err := getRecordStartTime(ctx, bag.path)
+	if err != nil {
 		return err
 	}
-	defer u.UploadCount.Release(1)
-	f, err := os.Open(bagPath)
+	name := fmt.Sprintf("%d", recordStartTime/time.Second)
+	f, err := os.Open(bag.path)
 	if err != nil {
 		return err
 	}
@@ -120,32 +119,7 @@ func (u *fileUploader) uploadBagFile(ctx context.Context, name, bagPath string) 
 	return u.uploadFile(ctx, uploadURL, f)
 }
 
-func (u *fileUploader) UploadBag(ctx context.Context, bagPath string) {
-	log.Printf("bag '%s' is ready", bagPath)
-	recordStartTime, err := getRecordStartTime(ctx, bagPath)
-	if err != nil {
-		log.Printf("failed to upload bag '%s': %v", bagPath, err)
-		return
-	}
-	name := fmt.Sprint(recordStartTime)
-	if err := u.uploadBagFile(ctx, name, bagPath); err != nil {
-		log.Printf("failed to upload bag '%s': %v", bagPath, err)
-		return
-	}
-	log.Printf("bag '%s' uploaded successfully", filepath.Base(bagPath))
-	matches, err := filepath.Glob(escapeMatchPattern(bagPath) + "*")
-	if err != nil {
-		log.Printf("failed to remove files for '%s': %v", bagPath, err)
-		return
-	}
-	for _, match := range matches {
-		if err = os.Remove(match); err != nil {
-			log.Printf("failed to remove '%s': %v", bagPath, err)
-		}
-	}
-}
-
-func getRecordStartTime(ctx context.Context, bagPath string) (int64, error) {
+func getRecordStartTime(ctx context.Context, bagPath string) (time.Duration, error) {
 	db, err := sql.Open("sqlite3", bagPath)
 	if err != nil {
 		return 0, err
@@ -154,7 +128,10 @@ func getRecordStartTime(ctx context.Context, bagPath string) (int64, error) {
 	var timestamp int64
 	err = db.QueryRowContext(ctx, "SELECT timestamp FROM messages ORDER BY timestamp LIMIT 1").Scan(&timestamp)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, errEmptyBag
+		}
 		return 0, err
 	}
-	return timestamp, nil
+	return time.Duration(timestamp), nil
 }

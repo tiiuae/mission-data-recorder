@@ -15,7 +15,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-type onBagReady = func(ctx context.Context, path string)
+type onBagReady = func(context.Context, *bagMetadata)
 
 type missionDataRecorder struct {
 	// If empty defaults to "ros2".
@@ -151,14 +151,32 @@ func logFileWatchErr(err error) {
 	}
 }
 
-var bagNumberRegex = regexp.MustCompile(`^(.*)_(\d+).db3$`)
-
 func (r *missionDataRecorder) notifyIfBagReady(
 	ctx context.Context, onBagReady onBagReady, bagPath string,
 ) {
-	matches := bagNumberRegex.FindStringSubmatch(bagPath)
+	// A notification for bag number n means bag number n-1 is ready, because
+	// the file creation notification is emitted when the bag is created and is
+	// initially empty.
+	if bag := newBagMetadata(bagPath, -1, true); bag != nil && bag.number >= 0 {
+		go onBagReady(ctx, bag)
+	}
+}
+
+type bagMetadata struct {
+	path   string
+	number int
+	isNew  bool
+	index  int
+}
+
+var bagNumberRegex = regexp.MustCompile(`^(.*)_(\d+)\.db3$`)
+
+func newBagMetadata(path string, delta int, isNew bool) *bagMetadata {
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+	matches := bagNumberRegex.FindStringSubmatch(base)
 	if matches == nil {
-		return
+		return nil
 	}
 	bagNumber, err := strconv.Atoi(matches[2])
 	if err != nil {
@@ -167,10 +185,11 @@ func (r *missionDataRecorder) notifyIfBagReady(
 		// regex.
 		panic(err)
 	}
-	// A notification for bag number n means bag number n-1 is ready, because
-	// the file creation notification is emitted when the bag is created and is
-	// initially empty.
-	if bagNumber > 0 {
-		go onBagReady(ctx, fmt.Sprintf("%s_%d.db3", matches[1], bagNumber-1))
+	bagNumber += delta
+	base = fmt.Sprintf("%s_%d.db3", matches[1], bagNumber)
+	return &bagMetadata{
+		path:   filepath.Join(dir, base),
+		number: bagNumber,
+		isNew:  isNew,
 	}
 }

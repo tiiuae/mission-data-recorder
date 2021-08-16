@@ -14,7 +14,6 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	_ "github.com/mattn/go-sqlite3"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -69,26 +68,9 @@ func escapeMatchPattern(p string) string {
 	return matchPatternEscaper.Replace(p)
 }
 
-var privateKey interface{}
-
-func newUploadFunc(maxUploadCount int) onBagReady {
-	if maxUploadCount <= 0 {
-		return func(context.Context, string) {}
-	}
-	return (&fileUploader{
-		HTTPClient:    http.DefaultClient,
-		SigningMethod: jwt.GetSigningMethod(*privateKeyAlgorithm),
-		SigningKey:    privateKey,
-		TokenLifetime: 2 * time.Minute,
-		DeviceID:      *deviceID,
-		ProjectID:     *projectID,
-		UploadCount:   semaphore.NewWeighted(int64(maxUploadCount)),
-	}).UploadBag
-}
-
 func run() (err error) {
 	flag.Parse()
-	privateKey, err = loadPrivateKey()
+	privateKey, err := loadPrivateKey()
 	if err != nil {
 		return err
 	}
@@ -106,6 +88,19 @@ func run() (err error) {
 		initialConfig.Topics = parseCommaSeparatedList(*topics)
 	}
 
+	uploader := &fileUploader{
+		HTTPClient:    http.DefaultClient,
+		SigningMethod: jwt.GetSigningMethod(*privateKeyAlgorithm),
+		SigningKey:    privateKey,
+		TokenLifetime: 2 * time.Minute,
+		DeviceID:      *deviceID,
+		ProjectID:     *projectID,
+	}
+	uploadMan := newUploadManager(*maxUploadCount, uploader.UploadBag)
+	if err = uploadMan.LoadExistingBags(*destDir); err != nil {
+		log.Println("failed to load existing bags:", err)
+	}
+
 	configWatcher, err := newConfigWatcher(
 		*deviceID,
 		"mission_data_recorder",
@@ -114,7 +109,7 @@ func run() (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to create config watcher: %w", err)
 	}
-	configWatcher.NewUploadFunc = newUploadFunc
+	configWatcher.UploadManager = uploadMan
 	configWatcher.Recorder.ExtraArgs = parseCommaSeparatedList(*extraArgs)
 	configWatcher.Recorder.Dir = *destDir
 	err = configWatcher.Start(ctx)

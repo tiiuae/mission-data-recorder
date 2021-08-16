@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -67,6 +66,22 @@ extra-args: [arg1, arg2]`},
 	cupaloy.SnapshotT(t, data)
 }
 
+type fakeUploadManager struct {
+	t *testing.T
+}
+
+func (m *fakeUploadManager) StartWorker(ctx context.Context) {
+	m.t.Log("worker started")
+}
+
+func (m *fakeUploadManager) SetWorkerCount(n int) {
+	m.t.Log("worker count set to", n)
+}
+
+func (m *fakeUploadManager) AddBag(ctx context.Context, bag *bagMetadata) {
+	m.t.Log("got bag", bag.path)
+}
+
 func TestConfigWatcher(t *testing.T) {
 	var (
 		watcherStopped          = make(chan struct{})
@@ -76,12 +91,6 @@ func TestConfigWatcher(t *testing.T) {
 		configPub, aPub, bPub *rclgo.Publisher
 
 		watcher *configWatcher
-
-		newUploadFunc = func(int) onBagReady {
-			return func(ctx context.Context, path string) {
-				log.Println("got bag", path)
-			}
-		}
 
 		strMsg = func(s string) *std_msgs_msg.String {
 			m := std_msgs_msg.NewString()
@@ -125,7 +134,7 @@ func TestConfigWatcher(t *testing.T) {
 				},
 			)
 			So(err, ShouldBeNil)
-			watcher.NewUploadFunc = newUploadFunc
+			watcher.UploadManager = &fakeUploadManager{t: t}
 			watcher.Recorder.Dir = tempDir
 			go func() {
 				defer close(watcherStopped)
