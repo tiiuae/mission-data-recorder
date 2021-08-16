@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/sync/semaphore"
 )
 

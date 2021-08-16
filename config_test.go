@@ -89,6 +89,7 @@ func TestConfigWatcher(t *testing.T) {
 			return m
 		}
 	)
+	const sleepTime = 5 * time.Second
 	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -140,37 +141,37 @@ func TestConfigWatcher(t *testing.T) {
 			So(aPub.Publish(strMsg("a")), ShouldBeNil)
 			time.Sleep(10 * time.Millisecond)
 			So(bPub.Publish(strMsg("b")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder config is updated", func() {
 			So(configPub.Publish(strMsg("topics: all")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder records correct data with updated config", func() {
 			So(aPub.Publish(strMsg("a after update")), ShouldBeNil)
 			time.Sleep(10 * time.Millisecond)
 			So(bPub.Publish(strMsg("b after update")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder is stopped", func() {
 			So(configPub.Publish(strMsg("topics:")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder doesn't record anything when stopped", func() {
 			So(aPub.Publish(strMsg("a after stopping")), ShouldBeNil)
 			time.Sleep(10 * time.Millisecond)
 			So(bPub.Publish(strMsg("b after stopping")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder is started again", func() {
 			So(configPub.Publish(strMsg(`topics: ["/test/b"]`)), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder records data from topic b after starting again", func() {
 			So(aPub.Publish(strMsg("a after starting again")), ShouldBeNil)
 			time.Sleep(10 * time.Millisecond)
 			So(bPub.Publish(strMsg("b after starting again")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Stop recording", func() {
 			stopWatcher()

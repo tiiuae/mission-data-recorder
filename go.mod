@@ -6,6 +6,7 @@ require (
 	github.com/bradleyjkemp/cupaloy/v2 v2.6.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/tiiuae/rclgo v0.0.0-20210611063320-9f244c781620
 	github.com/tiiuae/rclgo-msgs v0.0.0-20210610140639-51254eed4a5b
