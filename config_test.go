@@ -12,7 +12,6 @@ import (
 	"github.com/tiiuae/mission-data-recorder/internal"
 	std_msgs_msg "github.com/tiiuae/rclgo-msgs/std_msgs/msg"
 	"github.com/tiiuae/rclgo/pkg/rclgo"
-	"gopkg.in/yaml.v3"
 )
 
 func readRecordings(dir string) ([]interface{}, error) {
@@ -30,7 +29,7 @@ func readRecordings(dir string) ([]interface{}, error) {
 func TestConfigUnmarshalYAML(t *testing.T) {
 	data := []struct {
 		in string
-		c  config
+		c  *config
 		e  error
 	}{
 		{in: ``},
@@ -61,7 +60,7 @@ extra-args: [arg1, arg2]`},
 		{in: `max-upload-count: 7`},
 	}
 	for i := range data {
-		data[i].e = yaml.Unmarshal([]byte(data[i].in), &data[i].c)
+		data[i].c, data[i].e = parseConfigYAML(data[i].in)
 	}
 	cupaloy.SnapshotT(t, data)
 }

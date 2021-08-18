@@ -18,76 +18,61 @@ func onErr(err *error, f func() error) {
 	}
 }
 
-type config struct {
-	Topics          []string
-	RecordAllTopics bool
-	SizeThreshold   int
-	ExtraArgs       []string
-	MaxUploadCount  int
-}
+type topicSlice []string
 
-func (c *config) UnmarshalYAML(val *yaml.Node) error {
-	var data map[string]interface{}
+func (s *topicSlice) UnmarshalYAML(val *yaml.Node) error {
+	var data interface{}
 	if err := val.Decode(&data); err != nil {
 		return err
 	}
-	switch x := data["size-threshold"].(type) {
-	case nil:
-		c.SizeThreshold = defaultSizeThreshold
-	case int:
-		c.SizeThreshold = x
-	default:
-		return errors.New("'size-threshold' must be an integer")
-	}
-	c.Topics = nil
-	c.RecordAllTopics = false
-	switch x := data["topics"].(type) {
+	switch x := data.(type) {
 	case nil:
 	case string:
 		switch x {
 		case "":
+			*s = topicSlice{}
 		case "all":
-			c.RecordAllTopics = true
+			*s = nil
 		default:
 			return errors.New("'topics' must be an empty string, the string 'all' or a list of strings")
 		}
 	case []interface{}:
+		var ts topicSlice
 		for _, t := range x {
 			if s, ok := t.(string); ok {
-				c.Topics = append(c.Topics, s)
+				ts = append(ts, s)
 			} else {
 				return errors.New("'topics' must be an empty string, the string 'all' or a list of strings")
 			}
 		}
+		*s = ts
 	default:
 		return errors.New("'topics' must be an empty string, the string 'all' or a list of strings")
 	}
-	c.ExtraArgs = nil
-	switch args := data["extra-args"].(type) {
-	case nil:
-	case []interface{}:
-		for _, arg := range args {
-			if a, ok := arg.(string); ok {
-				c.ExtraArgs = append(c.ExtraArgs, a)
-			} else {
-				return errors.New("'extra-args' must be a list of strings")
-			}
-		}
-	default:
-		return errors.New("'extra-args' must be a list of strings")
-	}
-	switch x := data["max-upload-count"].(type) {
-	case nil:
-		c.MaxUploadCount = defaultMaxUploadCount
-	case int:
-		if x < 0 {
-			return errors.New("'max-upload-count' must be non-negative")
-		}
-		c.MaxUploadCount = x
-	default:
-		return errors.New("'max-upload-count' must be an integer")
-	}
 	return nil
+}
+
+type config struct {
+	Topics          topicSlice `yaml:"topics"`
+	RecordAllTopics bool       `yaml:"-"`
+	SizeThreshold   int        `yaml:"size-threshold"`
+	ExtraArgs       []string   `yaml:"extra-args"`
+	MaxUploadCount  int        `yaml:"max-upload-count"`
+}
+
+func parseConfigYAML(s string) (*config, error) {
+	config := config{
+		SizeThreshold:  defaultSizeThreshold,
+		MaxUploadCount: defaultMaxUploadCount,
+	}
+	if err := yaml.Unmarshal([]byte(s), &config); err != nil {
+		return nil, err
+	}
+	config.RecordAllTopics = config.Topics == nil
+	if config.MaxUploadCount < 0 {
+		return nil, errors.New("'max-upload-count' must be non-negative")
+	}
+	return &config, nil
 }
 
 type uploadManagerInterface interface {
@@ -199,14 +184,14 @@ func (w *configWatcher) onUpdate(s *rclgo.Subscription) {
 		log.Println("failed to read config from topic:", err)
 		return
 	}
-	var config config
-	if err := yaml.Unmarshal([]byte(configYaml.Data), &config); err != nil {
+	config, err := parseConfigYAML(configYaml.Data)
+	if err != nil {
 		log.Println("failed to parse config:", err)
 		return
 	}
-	log.Println("got new config")
+	log.Println("got new config:", configYaml.Data)
 	w.stopRecording()
-	w.nextConfig <- &config
+	w.nextConfig <- config
 }
 
 func (w *configWatcher) newRecorderContext(ctx context.Context) (rctx context.Context) {
