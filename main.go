@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"gopkg.in/yaml.v3"
 )
 
 const defaultSizeThreshold = 10_000_000
@@ -30,6 +32,36 @@ var (
 	sizeThreshold       = flag.Int("size-threshold", defaultSizeThreshold, "Rosbags will be split when this size in bytes is reached")
 	extraArgs           = flag.String("extra-args", "", `Comma-separated list of extra arguments passed to ros bag record command after all other arguments passed to the command by this program.`)
 )
+
+func parseConfig() {
+	yamlBytes, err := ioutil.ReadFile("/enclave/mission_data_recorder.config")
+	if err != nil {
+		return
+	}
+
+	config := struct {
+		DeviceID      string `yaml:"device_id"`
+		Audience      string `yaml:"audience"`
+		BackendURL    string `yaml:"backend_url"`
+		Topics        string `yaml:"topics"`
+		DestDir       string `yaml:"dest_dir"`
+		SizeThreshold int    `yaml:"size_threshold"`
+		ExtraArgs     string `yaml:"extra_args"`
+	}{}
+
+	err = yaml.Unmarshal(yamlBytes, &config)
+	if err != nil {
+		log.Fatalf("Failed to unmarshal config yaml: %v", err)
+	}
+
+	*projectID = config.Audience
+	*deviceID = config.DeviceID
+	*backendURL = config.BackendURL
+	*topics = config.Topics
+	*destDir = config.DestDir
+	*sizeThreshold = config.SizeThreshold
+	*extraArgs = config.ExtraArgs
+}
 
 func loadPrivateKey() (key interface{}, err error) {
 	rawKey, err := os.ReadFile(*privateKeyPath)
@@ -91,6 +123,7 @@ func uploadBag(ctx context.Context, bagPath string) {
 
 func run() int {
 	flag.Parse()
+	parseConfig()
 	privateKey, err := loadPrivateKey()
 	if err != nil {
 		log.Println(err)
