@@ -53,17 +53,19 @@ func (s *topicSlice) UnmarshalYAML(val *yaml.Node) error {
 }
 
 type config struct {
-	Topics          topicSlice `yaml:"topics"`
-	RecordAllTopics bool       `yaml:"-"`
-	SizeThreshold   int        `yaml:"size-threshold"`
-	ExtraArgs       []string   `yaml:"extra-args"`
-	MaxUploadCount  int        `yaml:"max-upload-count"`
+	Topics          topicSlice      `yaml:"topics"`
+	RecordAllTopics bool            `yaml:"-"`
+	SizeThreshold   int             `yaml:"size-threshold"`
+	ExtraArgs       []string        `yaml:"extra-args"`
+	MaxUploadCount  int             `yaml:"max-upload-count"`
+	CompressionMode compressionMode `yaml:"compression-mode"`
 }
 
 func parseConfigYAML(s string) (*config, error) {
 	config := config{
-		SizeThreshold:  defaultSizeThreshold,
-		MaxUploadCount: defaultMaxUploadCount,
+		SizeThreshold:   defaultSizeThreshold,
+		MaxUploadCount:  defaultMaxUploadCount,
+		CompressionMode: defaultCompressionMode,
 	}
 	if err := yaml.Unmarshal([]byte(s), &config); err != nil {
 		return nil, err
@@ -77,7 +79,7 @@ func parseConfigYAML(s string) (*config, error) {
 
 type uploadManagerInterface interface {
 	StartWorker(context.Context)
-	SetWorkerCount(int)
+	SetConfig(int, compressionMode)
 	AddBag(context.Context, *bagMetadata)
 }
 
@@ -210,7 +212,7 @@ func (w *configWatcher) stopRecording() {
 }
 
 func (w *configWatcher) applyConfig(config *config) (startRecorder bool) {
-	w.UploadManager.SetWorkerCount(config.MaxUploadCount)
+	w.UploadManager.SetConfig(config.MaxUploadCount, config.CompressionMode)
 	w.Recorder.SizeThreshold = config.SizeThreshold
 	if config.RecordAllTopics {
 		w.Recorder.Topics = nil

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -12,17 +13,96 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/hashicorp/go-multierror"
+	"github.com/ulikunitz/xz"
 )
 
 var errEmptyBag = errors.New("bag is empty")
 
+type compressionMode string
+
+const (
+	compressionNone compressionMode = "none"
+	compressionGzip compressionMode = "gzip"
+	compressionXz   compressionMode = "xz"
+)
+
+func (m compressionMode) String() string {
+	return string(m)
+}
+
+func (m *compressionMode) Set(s string) error {
+	switch s {
+	case "none":
+		*m = compressionNone
+	case "gzip":
+		*m = compressionGzip
+	case "xz":
+		*m = compressionXz
+	default:
+		return fmt.Errorf("unknown compression mode: %s", s)
+	}
+	return nil
+}
+
+type pipe struct {
+	src         io.Reader
+	writer      io.WriteCloser
+	pipeOut     *io.PipeReader
+	pipeIn      *io.PipeWriter
+	copyErrChan chan error
+	copyErr     error
+}
+
+func newPipe(src io.Reader) *pipe {
+	pipe := &pipe{src: src}
+	pipe.pipeOut, pipe.pipeIn = io.Pipe()
+	return pipe
+}
+
+func (p *pipe) copy() {
+	defer close(p.copyErrChan)
+	_, err := io.Copy(p.writer, p.src)
+	p.copyErrChan <- err
+}
+
+func (p *pipe) Read(data []byte) (int, error) {
+	if p.copyErr != nil {
+		return 0, p.copyErr
+	}
+	select {
+	case p.copyErr = <-p.copyErrChan:
+		if p.copyErr == nil {
+			p.copyErr = io.EOF
+		}
+		return 0, p.copyErr
+	default:
+		return p.pipeOut.Read(data)
+	}
+}
+
+func (p *pipe) Close() error {
+	return multierror.Append(
+		p.writer.Close(),
+		p.pipeOut.Close(),
+		p.pipeIn.Close(),
+	).ErrorOrNil()
+}
+
 type fileUploader struct {
-	HTTPClient    *http.Client
-	SigningMethod jwt.SigningMethod
-	SigningKey    interface{}
-	TokenLifetime time.Duration
-	DeviceID      string
-	ProjectID     string
+	HTTPClient      *http.Client
+	SigningMethod   jwt.SigningMethod
+	SigningKey      interface{}
+	TokenLifetime   time.Duration
+	DeviceID        string
+	ProjectID       string
+	CompressionMode compressionMode
+}
+
+func (u *fileUploader) WithCompression(mode compressionMode) uploaderInterface {
+	x := *u
+	x.CompressionMode = mode
+	return &x
 }
 
 func (u *fileUploader) createToken(bagName string) (string, error) {
@@ -101,17 +181,44 @@ func (u *fileUploader) uploadFile(ctx context.Context, url string, file io.Reade
 	return nil
 }
 
-func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
-	recordStartTime, err := getRecordStartTime(ctx, bag.path)
-	if err != nil {
-		return err
+func (u *fileUploader) withCompression(src io.Reader) (rc io.ReadCloser, ext string, err error) {
+	pipe := newPipe(src)
+	defer onErr(&err, pipe.Close)
+	switch u.CompressionMode {
+	case compressionNone:
+		return io.NopCloser(src), "", nil
+	case compressionGzip:
+		pipe.writer = gzip.NewWriter(pipe.pipeIn)
+		ext = ".gz"
+	case compressionXz:
+		pipe.writer, err = xz.NewWriter(pipe.pipeIn)
+		if err != nil {
+			return nil, "", err
+		}
+		ext = ".xz"
+	default:
+		return nil, "", fmt.Errorf("invalid compression mode: %v", u.CompressionMode)
 	}
-	name := fmt.Sprintf("%d", recordStartTime/time.Second)
+	go pipe.copy()
+	return pipe, ext, nil
+}
+
+func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
 	f, err := os.Open(bag.path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+	compressed, ext, err := u.withCompression(f)
+	if err != nil {
+		return err
+	}
+	defer compressed.Close()
+	recordStartTime, err := getRecordStartTime(ctx, bag.path)
+	if err != nil {
+		return err
+	}
+	name := fmt.Sprintf("%d.db3%s", recordStartTime/time.Second, ext)
 	uploadURL, err := u.requestUploadURL(ctx, name, *backendURL+"/generate-url")
 	if err != nil {
 		return err
