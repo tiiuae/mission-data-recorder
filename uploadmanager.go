@@ -50,20 +50,22 @@ func (a *bagQueue) Pop() interface{} {
 	return item
 }
 
-type uploadBagFunc = func(context.Context, *bagMetadata) error
+type uploaderInterface interface {
+	UploadBag(context.Context, *bagMetadata) error
+	WithCompression(compressionMode) uploaderInterface
+}
 
 type uploadManager struct {
 	workerCount *semaphore.Weighted
-	uploadBag   uploadBagFunc
+	uploader    uploaderInterface
 	queue       bagQueue
 	mutex       sync.Mutex
 }
 
-func newUploadManager(workerCount int, uploadBag uploadBagFunc) *uploadManager {
-	sem := semaphore.NewWeighted(int64(workerCount))
+func newUploadManager(workerCount int, uploader uploaderInterface) *uploadManager {
 	return &uploadManager{
-		workerCount: unsafe.Pointer(sem),
-		uploadBag:   uploadBag,
+		workerCount: semaphore.NewWeighted(int64(workerCount)),
+		uploader:    uploader,
 	}
 }
 
@@ -92,28 +94,29 @@ func (m *uploadManager) addGlob(pattern string) error {
 	return nil
 }
 
-func (m *uploadManager) SetWorkerCount(n int) {
+func (m *uploadManager) SetConfig(workerCount int, mode compressionMode) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	m.workerCount = semaphore.NewWeighted(int64(n))
+	m.workerCount = semaphore.NewWeighted(int64(workerCount))
+	m.uploader = m.uploader.WithCompression(mode)
 }
 
 func (m *uploadManager) StartWorker(ctx context.Context) {
 	for ctx.Err() == nil {
-		bag := func() *bagMetadata {
+		bag, uploader := func() (*bagMetadata, uploaderInterface) {
 			m.mutex.Lock()
 			defer m.mutex.Unlock()
 			if m.workerCount.TryAcquire(1) {
-				return m.nextBag()
+				return m.nextBag(), m.uploader
 			}
-			return nil
+			return nil, nil
 		}()
 		if bag == nil {
 			return
 		}
 		defer m.workerCount.Release(1)
 		log.Printf("bag '%s' is ready", bag.path)
-		err := m.uploadBag(ctx, bag)
+		err := uploader.UploadBag(ctx, bag)
 		if err == nil {
 			log.Printf("bag '%s' uploaded successfully", bag.path)
 			m.removeBagFiles(bag)

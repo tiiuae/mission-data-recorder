@@ -201,6 +201,8 @@ github.com/tiiuae/rclgo v0.0.0-20210611063320-9f244c781620/go.mod h1:EmiKpPIJhAC
 github.com/tiiuae/rclgo-msgs v0.0.0-20210610140639-51254eed4a5b h1:Y986SVd5jXjDrIB6u2wwAsuaku028pleRYWppNlBc20=
 github.com/tiiuae/rclgo-msgs v0.0.0-20210610140639-51254eed4a5b/go.mod h1:0F6FyjJQB0ikCH0/6pdoZoXqro3bzRO1O8rO827HAj0=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
+github.com/ulikunitz/xz v0.5.10 h1:t92gobL9l3HE202wg3rlk19F6X+JOxl9BBrCCMYEYd8=
+github.com/ulikunitz/xz v0.5.10/go.mod h1:nbz6k7qbPmH4IRqmfOplQw/tblSgqTqBwxkY0oWt/14=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=

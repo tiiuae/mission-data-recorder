@@ -73,8 +73,8 @@ func (m *fakeUploadManager) StartWorker(ctx context.Context) {
 	m.t.Log("worker started")
 }
 
-func (m *fakeUploadManager) SetWorkerCount(n int) {
-	m.t.Log("worker count set to", n)
+func (m *fakeUploadManager) SetConfig(n int, mode compressionMode) {
+	m.t.Log("worker count set to", n, "compression mode set to", mode)
 }
 
 func (m *fakeUploadManager) AddBag(ctx context.Context, bag *bagMetadata) {

@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	defaultSizeThreshold  = 10_000_000
-	defaultMaxUploadCount = 5
+	defaultSizeThreshold   = 10_000_000
+	defaultMaxUploadCount  = 5
+	defaultCompressionMode = compressionNone
 )
 
 var (
@@ -32,7 +33,12 @@ var (
 	sizeThreshold       = flag.Int("size-threshold", defaultSizeThreshold, "Rosbags will be split when this size in bytes is reached")
 	extraArgs           = flag.String("extra-args", "", `Comma-separated list of extra arguments passed to ros bag record command after all other arguments passed to the command by this program.`)
 	maxUploadCount      = flag.Int("max-upload-count", defaultMaxUploadCount, "Maximum number of concurrent file uploads. If zero, file uploading is disabled.")
+	compression         = defaultCompressionMode
 )
+
+func init() {
+	flag.Var(&compression, "compression-mode", "Compression mode to use")
+}
 
 func loadPrivateKey() (key interface{}, err error) {
 	rawKey, err := os.ReadFile(*privateKeyPath)
@@ -96,7 +102,7 @@ func run() (err error) {
 		DeviceID:      *deviceID,
 		ProjectID:     *projectID,
 	}
-	uploadMan := newUploadManager(*maxUploadCount, uploader.UploadBag)
+	uploadMan := newUploadManager(*maxUploadCount, uploader)
 	if err = uploadMan.LoadExistingBags(*destDir); err != nil {
 		log.Println("failed to load existing bags:", err)
 	}
