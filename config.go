@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,47 +19,56 @@ func onErr(err *error, f func() error) {
 	}
 }
 
-type topicSlice []string
+type topicList struct {
+	Topics []string
+	All    bool
+}
 
-func (s *topicSlice) UnmarshalYAML(val *yaml.Node) error {
-	var data interface{}
-	if err := val.Decode(&data); err != nil {
-		return err
+func (s *topicList) String() string {
+	if s.All {
+		return "*"
 	}
-	switch x := data.(type) {
-	case nil:
-	case string:
-		switch x {
-		case "":
-			*s = topicSlice{}
-		case "all":
-			*s = nil
-		default:
-			return errors.New("'topics' must be an empty string, the string 'all' or a list of strings")
-		}
-	case []interface{}:
-		var ts topicSlice
-		for _, t := range x {
-			if s, ok := t.(string); ok {
-				ts = append(ts, s)
-			} else {
-				return errors.New("'topics' must be an empty string, the string 'all' or a list of strings")
-			}
-		}
-		*s = ts
-	default:
-		return errors.New("'topics' must be an empty string, the string 'all' or a list of strings")
+	return strings.Join(s.Topics, ",")
+}
+
+func (s *topicList) Set(val string) error {
+	if val == "*" {
+		s.All = true
+		s.Topics = nil
+	} else {
+		s.All = false
+		s.Topics = parseCommaSeparatedList(val)
 	}
 	return nil
 }
 
+func (s *topicList) UnmarshalYAML(val *yaml.Node) error {
+	const errMsg = "'topics' must be an empty string, '*' or a list of strings"
+	var ts topicList
+	if err := val.Decode(&ts.Topics); err != nil {
+		ts.Topics = nil
+		var str string
+		if err := val.Decode(&str); err != nil {
+			return errors.New(errMsg)
+		}
+		switch str {
+		case "":
+		case "*":
+			ts.All = true
+		default:
+			return errors.New(errMsg)
+		}
+	}
+	*s = ts
+	return nil
+}
+
 type config struct {
-	Topics          topicSlice      `yaml:"topics"`
-	RecordAllTopics bool            `yaml:"-"`
-	SizeThreshold   int             `yaml:"size-threshold"`
-	ExtraArgs       []string        `yaml:"extra-args"`
-	MaxUploadCount  int             `yaml:"max-upload-count"`
-	CompressionMode compressionMode `yaml:"compression-mode"`
+	Topics          topicList       `yaml:"topics"`
+	SizeThreshold   int             `yaml:"size_threshold"`
+	ExtraArgs       []string        `yaml:"extra_args"`
+	MaxUploadCount  int             `yaml:"max_upload_count"`
+	CompressionMode compressionMode `yaml:"compression_mode"`
 }
 
 func parseConfigYAML(s string) (*config, error) {
@@ -70,7 +80,6 @@ func parseConfigYAML(s string) (*config, error) {
 	if err := yaml.Unmarshal([]byte(s), &config); err != nil {
 		return nil, err
 	}
-	config.RecordAllTopics = config.Topics == nil
 	if config.MaxUploadCount < 0 {
 		return nil, errors.New("'max-upload-count' must be non-negative")
 	}
@@ -214,13 +223,11 @@ func (w *configWatcher) stopRecording() {
 func (w *configWatcher) applyConfig(config *config) (startRecorder bool) {
 	w.UploadManager.SetConfig(config.MaxUploadCount, config.CompressionMode)
 	w.Recorder.SizeThreshold = config.SizeThreshold
-	if config.RecordAllTopics {
+	w.Recorder.ExtraArgs = config.ExtraArgs
+	if config.Topics.All {
 		w.Recorder.Topics = nil
-	} else {
-		w.Recorder.Topics = config.Topics
-		if len(config.Topics) == 0 {
-			return false
-		}
+		return true
 	}
-	return true
+	w.Recorder.Topics = config.Topics.Topics
+	return len(config.Topics.Topics) != 0
 }

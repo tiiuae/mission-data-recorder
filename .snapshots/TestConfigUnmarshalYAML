@@ -1,176 +1,174 @@
-([]struct { in string; c main.config; e error }) (len=15) {
-  (struct { in string; c main.config; e error }) {
+([]struct { in string; c *main.config; e error }) (len=17) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) "",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 0,
-      ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 0
-    },
-    e: (error) <nil>
-  },
-  (struct { in string; c main.config; e error }) {
-    in: (string) (len=7) "topics:",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) ,
       SizeThreshold: (int) 10000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
+    in: (string) (len=7) "topics:",
+    c: (*main.config)({
+      Topics: (main.topicList) ,
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
+    e: (error) <nil>
+  },
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=32) "topics:\nsize-threshold: 15000000",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) ,
       SizeThreshold: (int) 15000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=9) "topics:  ",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) ,
       SizeThreshold: (int) 10000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=10) "topics: \"\"",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) ,
       SizeThreshold: (int) 10000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=36) "topics: all\nsize-threshold: 16000000",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) true,
+    c: (*main.config)({
+      Topics: (main.topicList) *,
       SizeThreshold: (int) 16000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=12) "topics: alll",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 10000000,
-      ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 0
-    },
-    e: (*errors.errorString)('topics' must be an empty string, the string 'all' or a list of strings)
+    c: (*main.config)(<nil>),
+    e: (*errors.errorString)('topics' must be an empty string, 'all', '*' or a list of strings)
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=41) "topics:\n  - /test_topic1\n  - /test_topic2",
-    c: (main.config) {
-      Topics: ([]string) (len=2) {
-        (string) (len=12) "/test_topic1",
-        (string) (len=12) "/test_topic2"
-      },
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) /test_topic1,/test_topic2,
       SizeThreshold: (int) 10000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=78) "size-threshold: 16000000\nextra-args:\ntopics:\n  - /test_topic1\n  - /test_topic2",
-    c: (main.config) {
-      Topics: ([]string) (len=2) {
-        (string) (len=12) "/test_topic1",
-        (string) (len=12) "/test_topic2"
-      },
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) /test_topic1,/test_topic2,
       SizeThreshold: (int) 16000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=24) "size-threshold: 16000000",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) ,
       SizeThreshold: (int) 16000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=42) "size-threshold: 16000000\nnon-existent-key:",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) ,
       SizeThreshold: (int) 16000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=67) "size-threshold: 16000000\nnon-existent-key:\nextra-args: [arg1, arg2]",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) ,
       SizeThreshold: (int) 16000000,
       ExtraArgs: ([]string) (len=2) {
         (string) (len=4) "arg1",
         (string) (len=4) "arg2"
       },
-      MaxUploadCount: (int) 5
-    },
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
     e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=20) "max-upload-count: -1",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
-      SizeThreshold: (int) 10000000,
-      ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 0
-    },
+    c: (*main.config)(<nil>),
     e: (*errors.errorString)('max-upload-count' must be non-negative)
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=21) "max-upload-count: 2.2",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) ,
       SizeThreshold: (int) 10000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 0
-    },
-    e: (*errors.errorString)('max-upload-count' must be an integer)
+      MaxUploadCount: (int) 2,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
+    e: (error) <nil>
   },
-  (struct { in string; c main.config; e error }) {
+  (struct { in string; c *main.config; e error }) {
     in: (string) (len=19) "max-upload-count: 7",
-    c: (main.config) {
-      Topics: ([]string) <nil>,
-      RecordAllTopics: (bool) false,
+    c: (*main.config)({
+      Topics: (main.topicList) ,
       SizeThreshold: (int) 10000000,
       ExtraArgs: ([]string) <nil>,
-      MaxUploadCount: (int) 7
-    },
+      MaxUploadCount: (int) 7,
+      CompressionMode: (main.compressionMode) (len=4) none
+    }),
+    e: (error) <nil>
+  },
+  (struct { in string; c *main.config; e error }) {
+    in: (string) (len=31) "compression-mode: not supported",
+    c: (*main.config)(<nil>),
+    e: (*errors.errorString)(unknown compression mode: not supported)
+  },
+  (struct { in string; c *main.config; e error }) {
+    in: (string) (len=22) "compression-mode: gzip",
+    c: (*main.config)({
+      Topics: (main.topicList) ,
+      SizeThreshold: (int) 10000000,
+      ExtraArgs: ([]string) <nil>,
+      MaxUploadCount: (int) 5,
+      CompressionMode: (main.compressionMode) (len=4) gzip
+    }),
     e: (error) <nil>
   }
 }

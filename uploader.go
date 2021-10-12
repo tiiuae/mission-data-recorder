@@ -15,6 +15,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/hashicorp/go-multierror"
 	"github.com/ulikunitz/xz"
+	"gopkg.in/yaml.v3"
 )
 
 var errEmptyBag = errors.New("bag is empty")
@@ -43,6 +44,14 @@ func (m *compressionMode) Set(s string) error {
 		return fmt.Errorf("unknown compression mode: %s", s)
 	}
 	return nil
+}
+
+func (m *compressionMode) UnmarshalYAML(val *yaml.Node) error {
+	var s string
+	if err := val.Decode(&s); err != nil {
+		return err
+	}
+	return m.Set(s)
 }
 
 type pipe struct {
@@ -219,7 +228,7 @@ func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
 		return err
 	}
 	name := recordStartTime.Format(time.RFC3339) + ".db3" + ext
-	uploadURL, err := u.requestUploadURL(ctx, name, *backendURL+"/generate-url")
+	uploadURL, err := u.requestUploadURL(ctx, name, backendURL+"/generate-url")
 	if err != nil {
 		return err
 	}

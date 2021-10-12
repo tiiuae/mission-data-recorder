@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -38,7 +37,7 @@ func TestConfigUnmarshalYAML(t *testing.T) {
 size-threshold: 15000000`},
 		{in: `topics:  `},
 		{in: `topics: ""`},
-		{in: `topics: all
+		{in: `topics: '*'
 size-threshold: 16000000`},
 		{in: `topics: alll`},
 		{in: `topics:
@@ -58,6 +57,8 @@ extra-args: [arg1, arg2]`},
 		{in: `max-upload-count: -1`},
 		{in: `max-upload-count: 2.2`},
 		{in: `max-upload-count: 7`},
+		{in: `compression-mode: not supported`},
+		{in: `compression-mode: gzip`},
 	}
 	for i := range data {
 		data[i].c, data[i].e = parseConfigYAML(data[i].in)
@@ -98,11 +99,7 @@ func TestConfigWatcher(t *testing.T) {
 		}
 	)
 	const sleepTime = 5 * time.Second
-	tempDir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 	defer func() {
 		if rclctx != nil {
 			rclctx.Close()
@@ -110,7 +107,7 @@ func TestConfigWatcher(t *testing.T) {
 	}()
 	Convey("Scenario: configWatcher manages a missionDataRecorder and restarts it when configuration changes", t, func() {
 		Convey("Create publishers", func() {
-			rclctx, err = rclgo.NewContext(nil, 0, nil)
+			rclctx, err := rclgo.NewContext(nil, 0, nil)
 			So(err, ShouldBeNil)
 			configNode, err := rclctx.NewNode("config_node", "/test")
 			So(err, ShouldBeNil)
@@ -124,12 +121,13 @@ func TestConfigWatcher(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("Start configWatcher", func() {
+			var err error
 			watcher, err = newConfigWatcher(
 				"/test",
 				"mission_data_recorder",
 				&config{
 					SizeThreshold: defaultSizeThreshold,
-					Topics:        []string{"/test/a"},
+					Topics:        topicList{Topics: []string{"/test/a"}},
 				},
 			)
 			So(err, ShouldBeNil)
