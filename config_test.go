@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +12,6 @@ import (
 	"github.com/tiiuae/mission-data-recorder/internal"
 	std_msgs_msg "github.com/tiiuae/rclgo-msgs/std_msgs/msg"
 	"github.com/tiiuae/rclgo/pkg/rclgo"
-	"gopkg.in/yaml.v3"
 )
 
 func readRecordings(dir string) ([]interface{}, error) {
@@ -31,7 +29,7 @@ func readRecordings(dir string) ([]interface{}, error) {
 func TestConfigUnmarshalYAML(t *testing.T) {
 	data := []struct {
 		in string
-		c  config
+		c  *config
 		e  error
 	}{
 		{in: ``},
@@ -57,11 +55,30 @@ non-existent-key:`},
 		{in: `size-threshold: 16000000
 non-existent-key:
 extra-args: [arg1, arg2]`},
+		{in: `max-upload-count: -1`},
+		{in: `max-upload-count: 2.2`},
+		{in: `max-upload-count: 7`},
 	}
 	for i := range data {
-		data[i].e = yaml.Unmarshal([]byte(data[i].in), &data[i].c)
+		data[i].c, data[i].e = parseConfigYAML(data[i].in)
 	}
 	cupaloy.SnapshotT(t, data)
+}
+
+type fakeUploadManager struct {
+	t *testing.T
+}
+
+func (m *fakeUploadManager) StartWorker(ctx context.Context) {
+	m.t.Log("worker started")
+}
+
+func (m *fakeUploadManager) SetConfig(n int, mode compressionMode) {
+	m.t.Log("worker count set to", n, "compression mode set to", mode)
+}
+
+func (m *fakeUploadManager) AddBag(ctx context.Context, bag *bagMetadata) {
+	m.t.Log("got bag", bag.path)
 }
 
 func TestConfigWatcher(t *testing.T) {
@@ -74,16 +91,13 @@ func TestConfigWatcher(t *testing.T) {
 
 		watcher *configWatcher
 
-		onBagReady = func(ctx context.Context, path string) {
-			log.Println("got bag", path)
-		}
-
 		strMsg = func(s string) *std_msgs_msg.String {
 			m := std_msgs_msg.NewString()
 			m.Data = s
 			return m
 		}
 	)
+	const sleepTime = 5 * time.Second
 	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -117,9 +131,9 @@ func TestConfigWatcher(t *testing.T) {
 					SizeThreshold: defaultSizeThreshold,
 					Topics:        []string{"/test/a"},
 				},
-				onBagReady,
 			)
 			So(err, ShouldBeNil)
+			watcher.UploadManager = &fakeUploadManager{t: t}
 			watcher.Recorder.Dir = tempDir
 			go func() {
 				defer close(watcherStopped)
@@ -135,37 +149,37 @@ func TestConfigWatcher(t *testing.T) {
 			So(aPub.Publish(strMsg("a")), ShouldBeNil)
 			time.Sleep(10 * time.Millisecond)
 			So(bPub.Publish(strMsg("b")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder config is updated", func() {
 			So(configPub.Publish(strMsg("topics: all")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder records correct data with updated config", func() {
 			So(aPub.Publish(strMsg("a after update")), ShouldBeNil)
 			time.Sleep(10 * time.Millisecond)
 			So(bPub.Publish(strMsg("b after update")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder is stopped", func() {
 			So(configPub.Publish(strMsg("topics:")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder doesn't record anything when stopped", func() {
 			So(aPub.Publish(strMsg("a after stopping")), ShouldBeNil)
 			time.Sleep(10 * time.Millisecond)
 			So(bPub.Publish(strMsg("b after stopping")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder is started again", func() {
 			So(configPub.Publish(strMsg(`topics: ["/test/b"]`)), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Recorder records data from topic b after starting again", func() {
 			So(aPub.Publish(strMsg("a after starting again")), ShouldBeNil)
 			time.Sleep(10 * time.Millisecond)
 			So(bPub.Publish(strMsg("b after starting again")), ShouldBeNil)
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(sleepTime)
 		})
 		Convey("Stop recording", func() {
 			stopWatcher()

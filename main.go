@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -10,16 +9,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/yaml.v3"
 )
 
-const defaultSizeThreshold = 10_000_000
+const (
+	defaultSizeThreshold   = 10_000_000
+	defaultMaxUploadCount  = 5
+	defaultCompressionMode = compressionNone
+)
 
 var (
 	projectID           = flag.String("project-id", "auto-fleet-mgnt", "Google Cloud project id")
@@ -31,6 +34,8 @@ var (
 	destDir             = flag.String("dest-dir", ".", "The directory where recordings are stored")
 	sizeThreshold       = flag.Int("size-threshold", defaultSizeThreshold, "Rosbags will be split when this size in bytes is reached")
 	extraArgs           = flag.String("extra-args", "", `Comma-separated list of extra arguments passed to ros bag record command after all other arguments passed to the command by this program.`)
+	maxUploadCount      = flag.Int("max-upload-count", defaultMaxUploadCount, "Maximum number of concurrent file uploads. If zero, file uploading is disabled.")
+	compression         = defaultCompressionMode
 )
 
 func parseConfig() {
@@ -63,6 +68,10 @@ func parseConfig() {
 	*extraArgs = config.ExtraArgs
 }
 
+func init() {
+	flag.Var(&compression, "compression-mode", "Compression mode to use")
+}
+
 func loadPrivateKey() (key interface{}, err error) {
 	rawKey, err := os.ReadFile(*privateKeyPath)
 	if err != nil {
@@ -86,60 +95,39 @@ func parseCommaSeparatedList(s string) []string {
 	return strings.Split(s, ",")
 }
 
-var uploader fileUploader
+var matchPatternEscaper = strings.NewReplacer(
+	`*`, `\*`,
+	`?`, `\?`,
+	`[`, `\[`,
+	`\`, `\\`,
+)
 
-func logUploadBagErr(bagPath string, err error) {
-	log.Printf("failed to upload bag '%s': %s", bagPath, err.Error())
+func escapeMatchPattern(p string) string {
+	return matchPatternEscaper.Replace(p)
 }
 
-func uploadBag(ctx context.Context, bagPath string) {
-	log.Printf("bag '%s' is ready", bagPath)
-	f, err := os.Open(bagPath)
-	if err != nil {
-		logUploadBagErr(bagPath, err)
-		return
-	}
-	defer f.Close()
-	uploadURL, err := uploader.requestUploadURL(ctx, *backendURL+"/generate-url")
-	if err != nil {
-		logUploadBagErr(bagPath, err)
-		return
-	}
-	if err = uploader.uploadFile(ctx, uploadURL, f); err != nil {
-		logUploadBagErr(bagPath, err)
-		return
-	}
-	log.Printf("bag '%s' uploaded successfully", filepath.Base(bagPath))
-	if err = os.Remove(bagPath); err != nil {
-		log.Printf("failed to remove '%s': %s", bagPath, err.Error())
-	}
-	if err = os.Remove(bagPath + "-wal"); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Printf("failed to remove '%s-wal': %s", bagPath, err.Error())
-	}
-	if err = os.Remove(bagPath + "-shm"); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Printf("failed to remove '%s-shm': %s", bagPath, err.Error())
-	}
-}
-
-func run() int {
+func run() (err error) {
 	flag.Parse()
 	parseConfig()
 	privateKey, err := loadPrivateKey()
 	if err != nil {
-		log.Println(err)
-		return 1
+		return err
 	}
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		<-signalChan
-		cancel()
-	}()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	uploader = fileUploader{
+	initialConfig := &config{
+		SizeThreshold:  *sizeThreshold,
+		MaxUploadCount: *maxUploadCount,
+	}
+	if *topics == "*" {
+		initialConfig.RecordAllTopics = true
+	} else if *topics != "" {
+		initialConfig.Topics = parseCommaSeparatedList(*topics)
+	}
+
+	uploader := &fileUploader{
 		HTTPClient:    http.DefaultClient,
 		SigningMethod: jwt.GetSigningMethod(*privateKeyAlgorithm),
 		SigningKey:    privateKey,
@@ -147,36 +135,34 @@ func run() int {
 		DeviceID:      *deviceID,
 		ProjectID:     *projectID,
 	}
-
-	initialConfig := &config{SizeThreshold: *sizeThreshold}
-	if *topics == "*" {
-		initialConfig.RecordAllTopics = true
-	} else if *topics != "" {
-		initialConfig.Topics = parseCommaSeparatedList(*topics)
+	uploadMan := newUploadManager(*maxUploadCount, uploader)
+	if err = uploadMan.LoadExistingBags(*destDir); err != nil {
+		log.Println("failed to load existing bags:", err)
 	}
 
 	configWatcher, err := newConfigWatcher(
 		*deviceID,
 		"mission_data_recorder",
 		initialConfig,
-		uploadBag,
 	)
 	if err != nil {
-		log.Println("failed to create config watcher:", err)
-		return 1
+		return fmt.Errorf("failed to create config watcher: %w", err)
 	}
+	configWatcher.UploadManager = uploadMan
 	configWatcher.Recorder.ExtraArgs = parseCommaSeparatedList(*extraArgs)
 	configWatcher.Recorder.Dir = *destDir
 	err = configWatcher.Start(ctx)
 	switch err {
 	case nil, context.Canceled:
-		return 0
+		return nil
 	default:
-		log.Println("config watcher stopped with an error:", err)
-		return 1
+		return fmt.Errorf("config watcher stopped with an error: %w", err)
 	}
 }
 
 func main() {
-	os.Exit(run())
+	if err := run(); err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
 }
