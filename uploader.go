@@ -218,7 +218,7 @@ func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
 	if err != nil {
 		return err
 	}
-	name := fmt.Sprintf("%d.db3%s", recordStartTime/time.Second, ext)
+	name := recordStartTime.Format(time.RFC3339) + ".db3" + ext
 	uploadURL, err := u.requestUploadURL(ctx, name, *backendURL+"/generate-url")
 	if err != nil {
 		return err
@@ -226,19 +226,19 @@ func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
 	return u.uploadFile(ctx, uploadURL, f)
 }
 
-func getRecordStartTime(ctx context.Context, bagPath string) (time.Duration, error) {
+func getRecordStartTime(ctx context.Context, bagPath string) (time.Time, error) {
 	db, err := sql.Open("sqlite3", bagPath)
 	if err != nil {
-		return 0, err
+		return time.Time{}, err
 	}
 	defer db.Close()
 	var timestamp int64
 	err = db.QueryRowContext(ctx, "SELECT timestamp FROM messages ORDER BY timestamp LIMIT 1").Scan(&timestamp)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, errEmptyBag
+			return time.Time{}, errEmptyBag
 		}
-		return 0, err
+		return time.Time{}, err
 	}
-	return time.Duration(timestamp), nil
+	return time.Unix(0, timestamp).UTC(), nil
 }
