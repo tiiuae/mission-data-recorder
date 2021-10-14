@@ -193,6 +193,7 @@ func run() (err error) {
 	if err = uploadMan.LoadExistingBags(destDir); err != nil {
 		log.Println("failed to load existing bags:", err)
 	}
+	uploadMan.StartAllWorkers(ctx)
 
 	configWatcher, err := newConfigWatcher(
 		deviceID,

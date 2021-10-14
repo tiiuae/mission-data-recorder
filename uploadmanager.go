@@ -4,9 +4,12 @@ import (
 	"container/heap"
 	"context"
 	"errors"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -50,47 +53,57 @@ func (a *bagQueue) Pop() interface{} {
 	return item
 }
 
+var globRegex = func() *regexp.Regexp {
+	var b strings.Builder
+	b.WriteString(`^/.+\.db3(`)
+	for i, ext := range validBagExtensions {
+		if i > 0 {
+			b.WriteByte('|')
+		}
+		b.WriteString(regexp.QuoteMeta(ext))
+	}
+	b.WriteString(`)?$`)
+	return regexp.MustCompile(b.String())
+}()
+
 type uploaderInterface interface {
 	UploadBag(context.Context, *bagMetadata) error
 	WithCompression(compressionMode) uploaderInterface
 }
 
 type uploadManager struct {
-	workerCount *semaphore.Weighted
-	uploader    uploaderInterface
-	queue       bagQueue
-	mutex       sync.Mutex
+	workerCount    *semaphore.Weighted
+	maxWorkerCount int
+	uploader       uploaderInterface
+	queue          bagQueue
+	mutex          sync.Mutex
 }
 
 func newUploadManager(workerCount int, uploader uploaderInterface) *uploadManager {
 	return &uploadManager{
-		workerCount: semaphore.NewWeighted(int64(workerCount)),
-		uploader:    uploader,
+		workerCount:    semaphore.NewWeighted(int64(workerCount)),
+		maxWorkerCount: workerCount,
+		uploader:       uploader,
 	}
 }
 
 func (m *uploadManager) LoadExistingBags(dir string) error {
-	dir = escapeMatchPattern(filepath.Clean(dir))
-	if err := m.addGlob(dir + "/*.db3"); err != nil {
-		return err
-	}
-	if err := m.addGlob(dir + "/*/*.db3"); err != nil {
-		return err
-	}
-	heap.Init(&m.queue)
-	return nil
-}
-
-func (m *uploadManager) addGlob(pattern string) error {
-	matches, err := filepath.Glob(pattern)
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			log.Println("error during loading existing bags: failed to access '"+dir+"':", err)
+		} else if globRegex.MatchString(path[len(dir):]) {
+			if bag := newBagMetadata(path, 0, false); bag != nil {
+				m.queue = append(m.queue, bag)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	for _, match := range matches {
-		if bag := newBagMetadata(match, 0, false); bag != nil {
-			m.queue = append(m.queue, bag)
-		}
-	}
+	heap.Init(&m.queue)
 	return nil
 }
 
@@ -98,34 +111,45 @@ func (m *uploadManager) SetConfig(workerCount int, mode compressionMode) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	m.workerCount = semaphore.NewWeighted(int64(workerCount))
+	m.maxWorkerCount = workerCount
 	m.uploader = m.uploader.WithCompression(mode)
 }
 
 func (m *uploadManager) StartWorker(ctx context.Context) {
 	for ctx.Err() == nil {
-		bag, uploader := func() (*bagMetadata, uploaderInterface) {
-			m.mutex.Lock()
-			defer m.mutex.Unlock()
-			if m.workerCount.TryAcquire(1) {
-				return m.nextBag(), m.uploader
-			}
-			return nil, nil
-		}()
-		if bag == nil {
-			return
+		m.uploadNextBag(ctx)
+	}
+}
+
+func (m *uploadManager) uploadNextBag(ctx context.Context) {
+	bag, uploader, release := func() (*bagMetadata, uploaderInterface, func(int64)) {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+		if !m.workerCount.TryAcquire(1) {
+			return nil, nil, func(i int64) {}
 		}
-		defer m.workerCount.Release(1)
-		log.Printf("bag '%s' is ready", bag.path)
-		err := uploader.UploadBag(ctx, bag)
-		if err == nil {
-			log.Printf("bag '%s' uploaded successfully", bag.path)
+		return m.nextBag(), m.uploader, m.workerCount.Release
+	}()
+	defer release(1)
+	if bag == nil {
+		return
+	}
+	log.Printf("bag '%s' is ready", bag.path)
+	err := uploader.UploadBag(ctx, bag)
+	if err == nil {
+		log.Printf("bag '%s' uploaded successfully", bag.path)
+		m.removeBagFiles(bag)
+	} else {
+		log.Printf("failed to upload bag '%s': %v", bag.path, err)
+		if errors.Is(err, errEmptyBag) {
 			m.removeBagFiles(bag)
-		} else {
-			log.Printf("failed to upload bag '%s': %v", bag.path, err)
-			if errors.Is(err, errEmptyBag) {
-				m.removeBagFiles(bag)
-			}
 		}
+	}
+}
+
+func (m *uploadManager) StartAllWorkers(ctx context.Context) {
+	for i := 0; i < m.maxWorkerCount; i++ {
+		go m.StartWorker(ctx)
 	}
 }
 
@@ -141,6 +165,10 @@ func (m *uploadManager) removeBagFiles(bag *bagMetadata) {
 		}
 	}
 	bagDir := filepath.Dir(bag.path)
+	metadataFile := filepath.Join(bagDir, "metadata.yaml")
+	if err = os.Remove(metadataFile); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("failed to remove '%s': %v", metadataFile, err)
+	}
 	err = os.Remove(bagDir)
 	if err != nil &&
 		!errors.Is(err, syscall.ENOTEMPTY) &&

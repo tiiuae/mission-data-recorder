@@ -13,12 +13,13 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/hashicorp/go-multierror"
 	"github.com/ulikunitz/xz"
 	"gopkg.in/yaml.v3"
 )
 
 var errEmptyBag = errors.New("bag is empty")
+
+var validBagExtensions = []string{".gz", ".xz"}
 
 type compressionMode string
 
@@ -54,48 +55,56 @@ func (m *compressionMode) UnmarshalYAML(val *yaml.Node) error {
 	return m.Set(s)
 }
 
+type modifierFunc = func(io.Writer) (io.WriteCloser, error)
+
 type pipe struct {
-	src         io.Reader
-	writer      io.WriteCloser
-	pipeOut     *io.PipeReader
-	pipeIn      *io.PipeWriter
-	copyErrChan chan error
-	copyErr     error
+	src          io.Reader
+	modifier     modifierFunc
+	pipeIn       *io.PipeWriter
+	pipeOut      *io.PipeReader
+	closeErr     error
+	closeErrChan chan struct{}
 }
 
-func newPipe(src io.Reader) *pipe {
-	pipe := &pipe{src: src}
-	pipe.pipeOut, pipe.pipeIn = io.Pipe()
-	return pipe
-}
-
-func (p *pipe) copy() {
-	defer close(p.copyErrChan)
-	_, err := io.Copy(p.writer, p.src)
-	p.copyErrChan <- err
+func newPipe(src io.Reader, modifier modifierFunc) *pipe {
+	p := &pipe{
+		src:          src,
+		modifier:     modifier,
+		closeErrChan: make(chan struct{}),
+	}
+	p.pipeOut, p.pipeIn = io.Pipe()
+	go p.copy()
+	return p
 }
 
 func (p *pipe) Read(data []byte) (int, error) {
-	if p.copyErr != nil {
-		return 0, p.copyErr
-	}
-	select {
-	case p.copyErr = <-p.copyErrChan:
-		if p.copyErr == nil {
-			p.copyErr = io.EOF
+	return p.pipeOut.Read(data)
+}
+
+func (p *pipe) copy() {
+	var (
+		modifier io.WriteCloser
+		err      error
+	)
+	defer func() {
+		if modifier == nil {
+			p.closeErr = err
+		} else {
+			p.closeErr = modifier.Close()
 		}
-		return 0, p.copyErr
-	default:
-		return p.pipeOut.Read(data)
+		close(p.closeErrChan)
+		p.pipeIn.CloseWithError(err)
+	}()
+	modifier, err = p.modifier(p.pipeIn)
+	if err == nil {
+		_, err = io.Copy(modifier, p.src)
 	}
 }
 
 func (p *pipe) Close() error {
-	return multierror.Append(
-		p.writer.Close(),
-		p.pipeOut.Close(),
-		p.pipeIn.Close(),
-	).ErrorOrNil()
+	p.pipeOut.Close()
+	<-p.closeErrChan
+	return p.closeErr
 }
 
 type fileUploader struct {
@@ -191,25 +200,24 @@ func (u *fileUploader) uploadFile(ctx context.Context, url string, file io.Reade
 }
 
 func (u *fileUploader) withCompression(src io.Reader) (rc io.ReadCloser, ext string, err error) {
-	pipe := newPipe(src)
-	defer onErr(&err, pipe.Close)
+	var modifier modifierFunc
 	switch u.CompressionMode {
 	case compressionNone:
 		return io.NopCloser(src), "", nil
 	case compressionGzip:
-		pipe.writer = gzip.NewWriter(pipe.pipeIn)
+		modifier = func(w io.Writer) (io.WriteCloser, error) {
+			return gzip.NewWriter(w), nil
+		}
 		ext = ".gz"
 	case compressionXz:
-		pipe.writer, err = xz.NewWriter(pipe.pipeIn)
-		if err != nil {
-			return nil, "", err
+		modifier = func(w io.Writer) (io.WriteCloser, error) {
+			return xz.NewWriter(w)
 		}
 		ext = ".xz"
 	default:
-		return nil, "", fmt.Errorf("invalid compression mode: %v", u.CompressionMode)
+		return nil, "", fmt.Errorf("invalid compression mode: %#v", u.CompressionMode)
 	}
-	go pipe.copy()
-	return pipe, ext, nil
+	return newPipe(src, modifier), ext, err
 }
 
 func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
@@ -232,7 +240,7 @@ func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
 	if err != nil {
 		return err
 	}
-	return u.uploadFile(ctx, uploadURL, f)
+	return u.uploadFile(ctx, uploadURL, compressed)
 }
 
 func getRecordStartTime(ctx context.Context, bagPath string) (time.Time, error) {
