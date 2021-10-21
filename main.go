@@ -19,6 +19,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const timeFormat = "2006-01-02T15:04:05.000000000Z07:00"
+
 type stringSlice []string
 
 func (s stringSlice) String() string {

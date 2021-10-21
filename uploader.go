@@ -235,7 +235,7 @@ func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
 	if err != nil {
 		return err
 	}
-	name := recordStartTime.Format(time.RFC3339) + ".db3" + ext
+	name := recordStartTime.Format(timeFormat) + ".db3" + ext
 	uploadURL, err := u.requestUploadURL(ctx, name, backendURL+"/generate-url")
 	if err != nil {
 		return err
