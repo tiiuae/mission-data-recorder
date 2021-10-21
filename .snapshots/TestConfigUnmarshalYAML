@@ -22,7 +22,7 @@
     e: (error) <nil>
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=32) "topics:\nsize-threshold: 15000000",
+    in: (string) (len=32) "topics:\nsize_threshold: 15000000",
     c: (*main.config)({
       Topics: (main.topicList) ,
       SizeThreshold: (int) 15000000,
@@ -55,7 +55,7 @@
     e: (error) <nil>
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=36) "topics: all\nsize-threshold: 16000000",
+    in: (string) (len=36) "topics: '*'\nsize_threshold: 16000000",
     c: (*main.config)({
       Topics: (main.topicList) *,
       SizeThreshold: (int) 16000000,
@@ -68,7 +68,7 @@
   (struct { in string; c *main.config; e error }) {
     in: (string) (len=12) "topics: alll",
     c: (*main.config)(<nil>),
-    e: (*errors.errorString)('topics' must be an empty string, 'all', '*' or a list of strings)
+    e: (*errors.errorString)('topics' must be an empty string, '*' or a list of strings)
   },
   (struct { in string; c *main.config; e error }) {
     in: (string) (len=41) "topics:\n  - /test_topic1\n  - /test_topic2",
@@ -82,7 +82,7 @@
     e: (error) <nil>
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=78) "size-threshold: 16000000\nextra-args:\ntopics:\n  - /test_topic1\n  - /test_topic2",
+    in: (string) (len=78) "size_threshold: 16000000\nextra_args:\ntopics:\n  - /test_topic1\n  - /test_topic2",
     c: (*main.config)({
       Topics: (main.topicList) /test_topic1,/test_topic2,
       SizeThreshold: (int) 16000000,
@@ -93,7 +93,7 @@
     e: (error) <nil>
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=24) "size-threshold: 16000000",
+    in: (string) (len=24) "size_threshold: 16000000",
     c: (*main.config)({
       Topics: (main.topicList) ,
       SizeThreshold: (int) 16000000,
@@ -104,7 +104,7 @@
     e: (error) <nil>
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=42) "size-threshold: 16000000\nnon-existent-key:",
+    in: (string) (len=42) "size_threshold: 16000000\nnon_existent_key:",
     c: (*main.config)({
       Topics: (main.topicList) ,
       SizeThreshold: (int) 16000000,
@@ -115,7 +115,7 @@
     e: (error) <nil>
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=67) "size-threshold: 16000000\nnon-existent-key:\nextra-args: [arg1, arg2]",
+    in: (string) (len=67) "size_threshold: 16000000\nnon_existent_key:\nextra_args: [arg1, arg2]",
     c: (*main.config)({
       Topics: (main.topicList) ,
       SizeThreshold: (int) 16000000,
@@ -129,12 +129,12 @@
     e: (error) <nil>
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=20) "max-upload-count: -1",
+    in: (string) (len=20) "max_upload_count: -1",
     c: (*main.config)(<nil>),
     e: (*errors.errorString)('max-upload-count' must be non-negative)
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=21) "max-upload-count: 2.2",
+    in: (string) (len=21) "max_upload_count: 2.2",
     c: (*main.config)({
       Topics: (main.topicList) ,
       SizeThreshold: (int) 10000000,
@@ -145,7 +145,7 @@
     e: (error) <nil>
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=19) "max-upload-count: 7",
+    in: (string) (len=19) "max_upload_count: 7",
     c: (*main.config)({
       Topics: (main.topicList) ,
       SizeThreshold: (int) 10000000,
@@ -156,12 +156,12 @@
     e: (error) <nil>
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=31) "compression-mode: not supported",
+    in: (string) (len=31) "compression_mode: not supported",
     c: (*main.config)(<nil>),
     e: (*errors.errorString)(unknown compression mode: not supported)
   },
   (struct { in string; c *main.config; e error }) {
-    in: (string) (len=22) "compression-mode: gzip",
+    in: (string) (len=22) "compression_mode: gzip",
     c: (*main.config)({
       Topics: (main.topicList) ,
       SizeThreshold: (int) 10000000,

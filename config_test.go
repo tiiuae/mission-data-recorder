@@ -34,31 +34,31 @@ func TestConfigUnmarshalYAML(t *testing.T) {
 		{in: ``},
 		{in: `topics:`},
 		{in: `topics:
-size-threshold: 15000000`},
+size_threshold: 15000000`},
 		{in: `topics:  `},
 		{in: `topics: ""`},
 		{in: `topics: '*'
-size-threshold: 16000000`},
+size_threshold: 16000000`},
 		{in: `topics: alll`},
 		{in: `topics:
   - /test_topic1
   - /test_topic2`},
-		{in: `size-threshold: 16000000
-extra-args:
+		{in: `size_threshold: 16000000
+extra_args:
 topics:
   - /test_topic1
   - /test_topic2`},
-		{in: `size-threshold: 16000000`},
-		{in: `size-threshold: 16000000
-non-existent-key:`},
-		{in: `size-threshold: 16000000
-non-existent-key:
-extra-args: [arg1, arg2]`},
-		{in: `max-upload-count: -1`},
-		{in: `max-upload-count: 2.2`},
-		{in: `max-upload-count: 7`},
-		{in: `compression-mode: not supported`},
-		{in: `compression-mode: gzip`},
+		{in: `size_threshold: 16000000`},
+		{in: `size_threshold: 16000000
+non_existent_key:`},
+		{in: `size_threshold: 16000000
+non_existent_key:
+extra_args: [arg1, arg2]`},
+		{in: `max_upload_count: -1`},
+		{in: `max_upload_count: 2.2`},
+		{in: `max_upload_count: 7`},
+		{in: `compression_mode: not supported`},
+		{in: `compression_mode: gzip`},
 	}
 	for i := range data {
 		data[i].c, data[i].e = parseConfigYAML(data[i].in)
