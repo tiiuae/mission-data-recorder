@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	std_msgs_msg "github.com/tiiuae/rclgo-msgs/std_msgs/msg"
+	std_msgs_msg "github.com/tiiuae/mission-data-recorder/msgs/std_msgs/msg"
 	"github.com/tiiuae/rclgo/pkg/rclgo"
 	"gopkg.in/yaml.v3"
 )

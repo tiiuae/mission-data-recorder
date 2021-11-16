@@ -17,7 +17,6 @@ RUN echo "deb [trusted=yes] https://artifactory.ssrc.fi/artifactory/debian-publi
 
 # Install build dependencies
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
-    golang-1.16 \
     debhelper \
     dh-make \
     fakeroot \
@@ -32,13 +31,18 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     ros-foxy-rosbag2-transport \
     && rm -rf /var/lib/apt/lists/*
 
-ENV PATH="/usr/lib/go-1.16/bin/:${PATH}"
+ENV GO_VERSION=1.17.3
+RUN curl "https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz"\
+    | tar -C /usr/local -xz
+ENV GOPATH=/go
+ENV PATH="/usr/local/go/bin:${PATH}:${GOPATH}/bin"
 
 WORKDIR /build
 
 COPY . .
 
-RUN params="-m $(realpath .) " \
+RUN . /opt/ros/foxy/setup.sh && \
+    params="-m $(realpath .) " \
     && [ ! "${BUILD_NUMBER}" = "" ] && params="$params -b ${BUILD_NUMBER}" || : \
     && [ ! "${COMMIT_ID}" = "" ] && params="$params -c ${COMMIT_ID}" || : \
     && [ ! "${GIT_VER}" = "" ] && params="$params -g ${GIT_VER}" || : \

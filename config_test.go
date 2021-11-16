@@ -9,7 +9,7 @@ import (
 	"github.com/bradleyjkemp/cupaloy/v2"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tiiuae/mission-data-recorder/internal"
-	std_msgs_msg "github.com/tiiuae/rclgo-msgs/std_msgs/msg"
+	std_msgs_msg "github.com/tiiuae/mission-data-recorder/msgs/std_msgs/msg"
 	"github.com/tiiuae/rclgo/pkg/rclgo"
 )
 
@@ -111,13 +111,13 @@ func TestConfigWatcher(t *testing.T) {
 			So(err, ShouldBeNil)
 			configNode, err := rclctx.NewNode("config_node", "/test")
 			So(err, ShouldBeNil)
-			configPub, err = configNode.NewPublisher("mission_data_recorder/config", std_msgs_msg.StringTypeSupport)
+			configPub, err = configNode.NewPublisher("mission_data_recorder/config", std_msgs_msg.StringTypeSupport, nil)
 			So(err, ShouldBeNil)
 			testNode, err := rclctx.NewNode("test_node", "/test")
 			So(err, ShouldBeNil)
-			aPub, err = testNode.NewPublisher("a", std_msgs_msg.StringTypeSupport)
+			aPub, err = testNode.NewPublisher("a", std_msgs_msg.StringTypeSupport, nil)
 			So(err, ShouldBeNil)
-			bPub, err = testNode.NewPublisher("b", std_msgs_msg.StringTypeSupport)
+			bPub, err = testNode.NewPublisher("b", std_msgs_msg.StringTypeSupport, nil)
 			So(err, ShouldBeNil)
 		})
 		Convey("Start configWatcher", func() {

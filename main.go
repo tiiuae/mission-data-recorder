@@ -14,10 +14,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 	_ "github.com/mattn/go-sqlite3"
 	"gopkg.in/yaml.v3"
 )
+
+//go:generate rclgo-gen generate -d msgs --message-module-prefix github.com/tiiuae/mission-data-recorder/msgs
 
 const timeFormat = "2006-01-02T15:04:05.000000000Z07:00"
 

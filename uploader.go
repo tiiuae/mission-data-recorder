@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/ulikunitz/xz"
 	"gopkg.in/yaml.v3"
 )
@@ -127,16 +127,16 @@ func (u *fileUploader) createToken(bagName string) (string, error) {
 	type jwtClaims struct {
 		DeviceID string `json:"deviceId"`
 		BagName  string `json:"bagName"`
-		jwt.StandardClaims
+		jwt.RegisteredClaims
 	}
 	now := time.Now()
 	token := jwt.NewWithClaims(u.SigningMethod, &jwtClaims{
 		DeviceID: u.DeviceID,
 		BagName:  bagName,
-		StandardClaims: jwt.StandardClaims{
-			IssuedAt:  now.Unix(),
-			ExpiresAt: now.Add(u.TokenLifetime).Unix(),
-			Audience:  u.ProjectID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(u.TokenLifetime)),
+			Audience:  jwt.ClaimStrings{u.ProjectID},
 		},
 	})
 	signedToken, err := token.SignedString(u.SigningKey)
