@@ -28,7 +28,7 @@ func readRecordings(dir string) ([]interface{}, error) {
 func TestConfigUnmarshalYAML(t *testing.T) {
 	data := []struct {
 		in string
-		c  *config
+		c  *updatableConfig
 		e  error
 	}{
 		{in: ``},
@@ -61,7 +61,7 @@ extra_args: [arg1, arg2]`},
 		{in: `compression_mode: gzip`},
 	}
 	for i := range data {
-		data[i].c, data[i].e = parseConfigYAML(data[i].in)
+		data[i].c, data[i].e = parseUpdatableConfigYAML(data[i].in)
 	}
 	cupaloy.SnapshotT(t, data)
 }
@@ -125,7 +125,7 @@ func TestConfigWatcher(t *testing.T) {
 			watcher, err = newConfigWatcher(
 				"/test",
 				"mission_data_recorder",
-				&config{
+				&updatableConfig{
 					SizeThreshold: defaultSizeThreshold,
 					Topics:        topicList{Topics: []string{"/test/a"}},
 				},

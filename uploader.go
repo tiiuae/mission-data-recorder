@@ -14,7 +14,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/ulikunitz/xz"
-	"gopkg.in/yaml.v3"
 )
 
 var errEmptyBag = errors.New("bag is empty")
@@ -33,26 +32,31 @@ func (m compressionMode) String() string {
 	return string(m)
 }
 
-func (m *compressionMode) Set(s string) error {
-	switch s {
-	case "none":
-		*m = compressionNone
-	case "gzip":
-		*m = compressionGzip
-	case "xz":
-		*m = compressionXz
-	default:
-		return fmt.Errorf("unknown compression mode: %s", s)
+func (m compressionMode) Type() string {
+	return "compression mode"
+}
+
+func (m *compressionMode) Set(val string) error {
+	mode, err := m.Parse(val)
+	if err != nil {
+		return err
 	}
+	*m = mode.(compressionMode)
 	return nil
 }
 
-func (m *compressionMode) UnmarshalYAML(val *yaml.Node) error {
-	var s string
-	if err := val.Decode(&s); err != nil {
-		return err
+func (m compressionMode) Parse(val interface{}) (interface{}, error) {
+	if val, ok := val.(string); ok {
+		switch val {
+		case "none":
+			return compressionNone, nil
+		case "gzip":
+			return compressionGzip, nil
+		case "xz":
+			return compressionXz, nil
+		}
 	}
-	return m.Set(s)
+	return nil, fmt.Errorf("invalid compression mode: %v", val)
 }
 
 type modifierFunc = func(io.Writer) (io.WriteCloser, error)
@@ -115,6 +119,7 @@ type fileUploader struct {
 	DeviceID        string
 	ProjectID       string
 	CompressionMode compressionMode
+	BackendURL      string
 }
 
 func (u *fileUploader) WithCompression(mode compressionMode) uploaderInterface {
@@ -236,7 +241,7 @@ func (u *fileUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
 		return err
 	}
 	name := recordStartTime.Format(timeFormat) + ".db3" + ext
-	uploadURL, err := u.requestUploadURL(ctx, name, backendURL+"/generate-url")
+	uploadURL, err := u.requestUploadURL(ctx, name, u.BackendURL+"/generate-url")
 	if err != nil {
 		return err
 	}

@@ -24,6 +24,50 @@ type topicList struct {
 	All    bool
 }
 
+func (l *topicList) Type() string {
+	return "topics"
+}
+
+func (l *topicList) Set(val string) error {
+	switch val {
+	case "":
+		l.All = false
+		l.Topics = nil
+	case "*":
+		l.All = true
+		l.Topics = nil
+	default:
+		l.All = false
+		l.Topics = parseCommaSeparatedList(val)
+	}
+	return nil
+}
+
+func (l *topicList) Parse(val interface{}) (interface{}, error) {
+	const errMsg = "'topics' must be an empty string, '*' or a list of strings"
+	switch topics := val.(type) {
+	case nil:
+		return topicList{}, nil
+	case string:
+		var tl topicList
+		if err := tl.Set(topics); err != nil {
+			return nil, err
+		}
+		return tl, nil
+	case []interface{}:
+		var list topicList
+		for _, topic := range topics {
+			if topic, ok := topic.(string); ok {
+				list.Topics = append(list.Topics, topic)
+			} else {
+				return nil, errors.New(errMsg)
+			}
+		}
+		return list, nil
+	}
+	return nil, errors.New(errMsg)
+}
+
 func (s *topicList) String() string {
 	if s.All {
 		return "*"
@@ -31,39 +75,20 @@ func (s *topicList) String() string {
 	return strings.Join(s.Topics, ",")
 }
 
-func (s *topicList) Set(val string) error {
-	if val == "*" {
-		s.All = true
-		s.Topics = nil
-	} else {
-		s.All = false
-		s.Topics = parseCommaSeparatedList(val)
-	}
-	return nil
-}
-
 func (s *topicList) UnmarshalYAML(val *yaml.Node) error {
-	const errMsg = "'topics' must be an empty string, '*' or a list of strings"
-	var ts topicList
-	if err := val.Decode(&ts.Topics); err != nil {
-		ts.Topics = nil
-		var str string
-		if err := val.Decode(&str); err != nil {
-			return errors.New(errMsg)
-		}
-		switch str {
-		case "":
-		case "*":
-			ts.All = true
-		default:
-			return errors.New(errMsg)
-		}
+	var decoded interface{}
+	if err := val.Decode(&decoded); err != nil {
+		return err
 	}
-	*s = ts
+	ts, err := s.Parse(decoded)
+	if err != nil {
+		return err
+	}
+	*s = ts.(topicList)
 	return nil
 }
 
-type config struct {
+type updatableConfig struct {
 	Topics          topicList       `yaml:"topics"`
 	SizeThreshold   int             `yaml:"size_threshold"`
 	ExtraArgs       []string        `yaml:"extra_args"`
@@ -71,8 +96,8 @@ type config struct {
 	CompressionMode compressionMode `yaml:"compression_mode"`
 }
 
-func parseConfigYAML(s string) (*config, error) {
-	config := config{
+func parseUpdatableConfigYAML(s string) (*updatableConfig, error) {
+	config := updatableConfig{
 		SizeThreshold:   defaultSizeThreshold,
 		MaxUploadCount:  defaultMaxUploadCount,
 		CompressionMode: defaultCompressionMode,
@@ -98,7 +123,7 @@ type configWatcher struct {
 	Recorder      missionDataRecorder
 	UploadManager uploadManagerInterface
 
-	nextConfig chan *config
+	nextConfig chan *updatableConfig
 
 	rclctx *rclgo.Context
 	ws     *rclgo.WaitSet
@@ -112,11 +137,11 @@ type configWatcher struct {
 
 func newConfigWatcher(
 	ns, nodeName string,
-	initConfig *config,
+	initConfig *updatableConfig,
 ) (w *configWatcher, err error) {
 	w = &configWatcher{
 		RetryDelay: 5 * time.Second,
-		nextConfig: make(chan *config, 1),
+		nextConfig: make(chan *updatableConfig, 1),
 	}
 	w.retryTimer = time.NewTimer(w.RetryDelay)
 	if !w.retryTimer.Stop() {
@@ -154,7 +179,7 @@ func (w *configWatcher) Close() error {
 
 func (w *configWatcher) Start(ctx context.Context) error {
 	w.ws.RunGoroutine(ctx)
-	var currentConfig *config
+	var currentConfig *updatableConfig
 	log.Println("starting mission-data-recorder")
 	for {
 		select {
@@ -173,7 +198,7 @@ func (w *configWatcher) Start(ctx context.Context) error {
 	}
 }
 
-func (w *configWatcher) startRecorder(ctx context.Context, config *config) {
+func (w *configWatcher) startRecorder(ctx context.Context, config *updatableConfig) {
 	startRecorder := w.applyConfig(config)
 	ctx = w.newRecorderContext(ctx)
 	go w.UploadManager.StartWorker(ctx)
@@ -195,7 +220,7 @@ func (w *configWatcher) onUpdate(s *rclgo.Subscription) {
 		log.Println("failed to read config from topic:", err)
 		return
 	}
-	config, err := parseConfigYAML(configYaml.Data)
+	config, err := parseUpdatableConfigYAML(configYaml.Data)
 	if err != nil {
 		log.Println("failed to parse config:", err)
 		return
@@ -220,7 +245,7 @@ func (w *configWatcher) stopRecording() {
 	}
 }
 
-func (w *configWatcher) applyConfig(config *config) (startRecorder bool) {
+func (w *configWatcher) applyConfig(config *updatableConfig) (startRecorder bool) {
 	w.UploadManager.SetConfig(config.MaxUploadCount, config.CompressionMode)
 	w.Recorder.SizeThreshold = config.SizeThreshold
 	w.Recorder.ExtraArgs = config.ExtraArgs

@@ -2,51 +2,25 @@ package main
 
 import (
 	"context"
-	"flag"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"reflect"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	_ "github.com/mattn/go-sqlite3"
-	"gopkg.in/yaml.v3"
+	"github.com/spf13/pflag"
+	"github.com/tiiuae/mission-data-recorder/configloader"
 )
 
 //go:generate rclgo-gen generate -d msgs --message-module-prefix github.com/tiiuae/mission-data-recorder/msgs
 
 const timeFormat = "2006-01-02T15:04:05.000000000Z07:00"
-
-type stringSlice []string
-
-func (s stringSlice) String() string {
-	return strings.Join(s, ",")
-}
-
-func (s *stringSlice) Set(val string) error {
-	*s = parseCommaSeparatedList(val)
-	return nil
-}
-
-func (s *stringSlice) UnmarshalYAML(val *yaml.Node) error {
-	var data []string
-	err := val.Decode(&data)
-	if err == nil {
-		*s = stringSlice(data)
-		return nil
-	}
-	var str string
-	if err = val.Decode(&str); err != nil {
-		return err
-	}
-	return s.Set(str)
-}
 
 const (
 	defaultSizeThreshold   = 10_000_000
@@ -54,96 +28,74 @@ const (
 	defaultCompressionMode = compressionNone
 )
 
-var (
-	configPath = "/enclave/mission_data_recorder.config"
+type configuration struct {
+	ProjectID       string          `usage:"Google Cloud project id"`
+	DeviceID        string          `env:"DRONE_DEVICE_ID" usage:"The provisioned device id (required)"`
+	BackendURL      string          `usage:"URL to the backend server (required)"`
+	PrivateKeyPath  string          `config:"private_key" flag:"private-key" env:"MISSION_DATA_RECORDER_PRIVATE_KEY" usage:"The private key used for authentication"`
+	KeyAlgorithm    string          `usage:"Supported values are RS256 and ES256"`
+	Topics          topicList       `usage:"Comma-separated list of topics to record. Special value \"*\" means everything. If empty, recording is not started."`
+	DestDir         string          `usage:"The directory where recordings are stored"`
+	SizeThreshold   int             `usage:"Rosbags will be split when this size in bytes is reached"`
+	ExtraArgs       []string        `usage:"Comma-separated list of extra arguments passed to ros bag record command after all other arguments passed to the command by this program."`
+	MaxUploadCount  int             `usage:"Maximum number of concurrent file uploads. If zero, file uploading is disabled."`
+	CompressionMode compressionMode `usage:"Compression mode to use"`
 
-	projectID           = "auto-fleet-mgnt"
-	deviceID            = ""
-	backendURL          = ""
-	privateKeyPath      = "/enclave/rsa_private.pem"
-	privateKeyAlgorithm = "RS256"
-	topics              topicList
-	destDir             = "."
-	sizeThreshold       = defaultSizeThreshold
-	extraArgs           stringSlice
-	maxUploadCount      = defaultMaxUploadCount
-	compression         = defaultCompressionMode
-)
-
-func init() {
-	flag.StringVar(&configPath, "config", configPath, "Path to config file")
-
-	flag.StringVar(&projectID, "project-id", projectID, "Google Cloud project id")
-	flag.StringVar(&deviceID, "device-id", deviceID, "The provisioned device id (required)")
-	flag.StringVar(&backendURL, "backend-url", backendURL, "URL to the backend server (required)")
-	flag.StringVar(&privateKeyPath, "private-key", privateKeyPath, "The private key used for authentication")
-	flag.StringVar(&privateKeyAlgorithm, "key-algorithm", privateKeyAlgorithm, "Supported values are RS256 and ES256")
-	flag.Var(&topics, "topics", `Comma-separated list of topics to record. Special value "*" means everything. If empty, recording is not started.`)
-	flag.StringVar(&destDir, "dest-dir", destDir, "The directory where recordings are stored")
-	flag.IntVar(&sizeThreshold, "size-threshold", sizeThreshold, "Rosbags will be split when this size in bytes is reached")
-	flag.Var(&extraArgs, "extra-args", `Comma-separated list of extra arguments passed to ros bag record command after all other arguments passed to the command by this program.`)
-	flag.IntVar(&maxUploadCount, "max-upload-count", maxUploadCount, "Maximum number of concurrent file uploads. If zero, file uploading is disabled.")
-	flag.Var(&compression, "compression-mode", "Compression mode to use")
+	privateKey interface{}
 }
 
-func parseConfig() {
-	yamlBytes, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return
+func loadConfig() (*configuration, error) {
+	config := &configuration{
+		ProjectID:       "auto-fleet-mgnt",
+		DeviceID:        "",
+		BackendURL:      "",
+		PrivateKeyPath:  "/enclave/rsa_private.pem",
+		KeyAlgorithm:    "RS256",
+		DestDir:         ".",
+		SizeThreshold:   defaultSizeThreshold,
+		MaxUploadCount:  defaultMaxUploadCount,
+		CompressionMode: defaultCompressionMode,
 	}
-
-	config := struct {
-		Audience            *string          `yaml:"audience"`
-		DeviceID            *string          `yaml:"device_id"`
-		BackendURL          *string          `yaml:"backend_url"`
-		PrivateKeyPath      *string          `yaml:"private_key"`
-		PrivateKeyAlgorithm *string          `yaml:"key_algorithm"`
-		Topics              *topicList       `yaml:"topics"`
-		DestDir             *string          `yaml:"dest_dir"`
-		SizeThreshold       *int             `yaml:"size_threshold"`
-		ExtraArgs           *stringSlice     `yaml:"extra_args"`
-		MaxUploadCount      *int             `yaml:"max_upload_count"`
-		CompressionMode     *compressionMode `yaml:"compression_mode"`
-	}{}
-
-	err = yaml.Unmarshal(yamlBytes, &config)
-	if err != nil {
-		log.Fatalf("Failed to unmarshal config yaml: %v", err)
-	}
-
-	set := func(dst, src interface{}) {
-		if s := reflect.ValueOf(src); !s.IsNil() {
-			reflect.ValueOf(dst).Elem().Set(s.Elem())
+	loader := configloader.New()
+	loader.ConfigPath = "/enclave/mission_data_recorder.config"
+	loader.ConfigType = "yaml"
+	loader.EnvPrefix = "MISSION_DATA_RECORDER"
+	loader.EnvFilePaths = []string{"/enclave/fog_env"}
+	if err := loader.Load(config); err != nil {
+		var f configloader.FatalErr
+		if errors.As(err, &f) {
+			return nil, err
+		} else if errors.Is(err, pflag.ErrHelp) {
+			return nil, nil
 		}
+		log.Println("during config loading:", err)
 	}
-
-	set(&projectID, config.Audience)
-	set(&deviceID, config.DeviceID)
-	set(&backendURL, config.BackendURL)
-	set(&privateKeyPath, config.PrivateKeyPath)
-	set(&privateKeyAlgorithm, config.PrivateKeyAlgorithm)
-	set(&topics, config.Topics)
-	set(&destDir, config.DestDir)
-	set(&sizeThreshold, config.SizeThreshold)
-	set(&extraArgs, config.ExtraArgs)
-	set(&maxUploadCount, config.MaxUploadCount)
-	set(&compression, config.CompressionMode)
-}
-
-func loadPrivateKey() (key interface{}, err error) {
-	rawKey, err := os.ReadFile(privateKeyPath)
-	if err != nil {
+	if config.DeviceID == "" {
+		return nil, errors.New("device ID is required")
+	}
+	if config.BackendURL == "" {
+		return nil, errors.New("backed URL is required")
+	}
+	if err := config.loadPrivateKey(); err != nil {
 		return nil, err
 	}
-	switch privateKeyAlgorithm {
-	case "RS256":
-		key, err = jwt.ParseRSAPrivateKeyFromPEM(rawKey)
-	case "ES256":
-		key, err = jwt.ParseECPrivateKeyFromPEM(rawKey)
-	default:
-		err = fmt.Errorf("unsupported key algorithm: %s", privateKeyAlgorithm)
+	return config, nil
+}
+
+func (config *configuration) loadPrivateKey() error {
+	rawKey, err := os.ReadFile(config.PrivateKeyPath)
+	if err != nil {
+		return err
 	}
-	return key, err
+	switch config.KeyAlgorithm {
+	case "RS256":
+		config.privateKey, err = jwt.ParseRSAPrivateKeyFromPEM(rawKey)
+	case "ES256":
+		config.privateKey, err = jwt.ParseECPrivateKeyFromPEM(rawKey)
+	default:
+		err = fmt.Errorf("unsupported key algorithm: %s", config.KeyAlgorithm)
+	}
+	return err
 }
 
 func parseCommaSeparatedList(s string) []string {
@@ -165,42 +117,40 @@ func escapeMatchPattern(p string) string {
 }
 
 func run() (err error) {
-	flag.Parse()  // Gives us access to -config parameter
-	parseConfig() // Load settings from config file
-	flag.Parse()  // Prefer command line settings to config file
-	privateKey, err := loadPrivateKey()
+	config, err := loadConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	initialConfig := &config{
-		Topics:          topics,
-		SizeThreshold:   sizeThreshold,
-		ExtraArgs:       extraArgs,
-		MaxUploadCount:  maxUploadCount,
-		CompressionMode: compression,
+	initialConfig := &updatableConfig{
+		Topics:          config.Topics,
+		SizeThreshold:   config.SizeThreshold,
+		ExtraArgs:       config.ExtraArgs,
+		MaxUploadCount:  config.MaxUploadCount,
+		CompressionMode: config.CompressionMode,
 	}
 
 	uploader := &fileUploader{
 		HTTPClient:      http.DefaultClient,
-		SigningMethod:   jwt.GetSigningMethod(privateKeyAlgorithm),
-		SigningKey:      privateKey,
+		SigningMethod:   jwt.GetSigningMethod(config.KeyAlgorithm),
+		SigningKey:      config.privateKey,
 		TokenLifetime:   2 * time.Minute,
-		DeviceID:        deviceID,
-		ProjectID:       projectID,
-		CompressionMode: compression,
+		DeviceID:        config.DeviceID,
+		ProjectID:       config.ProjectID,
+		CompressionMode: config.CompressionMode,
+		BackendURL:      config.BackendURL,
 	}
-	uploadMan := newUploadManager(maxUploadCount, uploader)
-	if err = uploadMan.LoadExistingBags(destDir); err != nil {
+	uploadMan := newUploadManager(config.MaxUploadCount, uploader)
+	if err = uploadMan.LoadExistingBags(config.DestDir); err != nil {
 		log.Println("failed to load existing bags:", err)
 	}
 	uploadMan.StartAllWorkers(ctx)
 
 	configWatcher, err := newConfigWatcher(
-		deviceID,
+		config.DeviceID,
 		"mission_data_recorder",
 		initialConfig,
 	)
@@ -208,7 +158,7 @@ func run() (err error) {
 		return fmt.Errorf("failed to create config watcher: %w", err)
 	}
 	configWatcher.UploadManager = uploadMan
-	configWatcher.Recorder.Dir = destDir
+	configWatcher.Recorder.Dir = config.DestDir
 	err = configWatcher.Start(ctx)
 	switch err {
 	case nil, context.Canceled:
