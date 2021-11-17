@@ -35,6 +35,12 @@ func (u *fakeUploader) UploadBag(ctx context.Context, bag *bagMetadata) error {
 	return nil
 }
 
+type fakeLogger struct{}
+
+func (l fakeLogger) Infof(string, ...interface{}) error  { return nil }
+func (l fakeLogger) Errorf(string, ...interface{}) error { return nil }
+func (l fakeLogger) Errorln(...interface{}) error        { return nil }
+
 func TestUploadManager(t *testing.T) {
 	const workerCount = 5
 	var (
@@ -43,7 +49,7 @@ func TestUploadManager(t *testing.T) {
 			bagCount: 100,
 			done:     make(chan struct{}),
 		}
-		uploadMan = newUploadManager(workerCount, &uploader)
+		uploadMan = newUploadManager(workerCount, &uploader,fakeLogger{})
 		ctx       = context.Background()
 		rnd       = rand.New(rand.NewSource(42))
 	)

@@ -129,6 +129,7 @@ func TestConfigWatcher(t *testing.T) {
 					SizeThreshold: defaultSizeThreshold,
 					Topics:        topicList{Topics: []string{"/test/a"}},
 				},
+				rclctx,
 			)
 			So(err, ShouldBeNil)
 			watcher.UploadManager = &fakeUploadManager{t: t}

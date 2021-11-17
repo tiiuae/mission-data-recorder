@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	std_msgs_msg "github.com/tiiuae/mission-data-recorder/msgs/std_msgs/msg"
 	"github.com/tiiuae/rclgo/pkg/rclgo"
 	"gopkg.in/yaml.v3"
@@ -118,6 +118,7 @@ type uploadManagerInterface interface {
 }
 
 type configWatcher struct {
+	*rclgo.Node
 	RetryDelay time.Duration
 
 	Recorder      missionDataRecorder
@@ -125,8 +126,7 @@ type configWatcher struct {
 
 	nextConfig chan *updatableConfig
 
-	rclctx *rclgo.Context
-	ws     *rclgo.WaitSet
+	ws *rclgo.WaitSet
 
 	stopRecorder      context.CancelFunc
 	stopRecorderMutex sync.Mutex
@@ -138,6 +138,7 @@ type configWatcher struct {
 func newConfigWatcher(
 	ns, nodeName string,
 	initConfig *updatableConfig,
+	ctx *rclgo.Context,
 ) (w *configWatcher, err error) {
 	w = &configWatcher{
 		RetryDelay: 5 * time.Second,
@@ -148,16 +149,12 @@ func newConfigWatcher(
 		<-w.retryTimer.C
 	}
 	w.nextConfig <- initConfig
-	w.rclctx, err = rclgo.NewContext(nil, 0, nil)
+	w.Node, err = ctx.NewNode(nodeName, ns)
 	if err != nil {
 		return nil, err
 	}
-	defer onErr(&err, w.rclctx.Close)
-	node, err := w.rclctx.NewNode(nodeName, ns)
-	if err != nil {
-		return nil, err
-	}
-	sub, err := node.NewSubscription(
+	defer onErr(&err, w.Node.Close)
+	sub, err := w.Node.NewSubscription(
 		nodeName+"/config",
 		std_msgs_msg.StringTypeSupport,
 		w.onUpdate,
@@ -165,7 +162,7 @@ func newConfigWatcher(
 	if err != nil {
 		return nil, err
 	}
-	w.ws, err = w.rclctx.NewWaitSet(500 * time.Millisecond)
+	w.ws, err = ctx.NewWaitSet(500 * time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
@@ -174,13 +171,16 @@ func newConfigWatcher(
 }
 
 func (w *configWatcher) Close() error {
-	return w.rclctx.Close()
+	return multierror.Append(
+		w.Node.Close(),
+		w.ws.Close(),
+	).ErrorOrNil()
 }
 
 func (w *configWatcher) Start(ctx context.Context) error {
 	w.ws.RunGoroutine(ctx)
 	var currentConfig *updatableConfig
-	log.Println("starting mission-data-recorder")
+	w.Logger().Info("starting mission-data-recorder")
 	for {
 		select {
 		case <-ctx.Done():
@@ -207,7 +207,7 @@ func (w *configWatcher) startRecorder(ctx context.Context, config *updatableConf
 		switch err {
 		case nil, context.Canceled:
 		default:
-			log.Printf("recorder stopped with an error, trying again in %v: %v", w.RetryDelay, err)
+			w.Logger().Errorf("recorder stopped with an error, trying again in %v: %v", w.RetryDelay, err)
 			w.retryTimerActive = true
 			w.retryTimer.Reset(w.RetryDelay)
 		}
@@ -217,15 +217,15 @@ func (w *configWatcher) startRecorder(ctx context.Context, config *updatableConf
 func (w *configWatcher) onUpdate(s *rclgo.Subscription) {
 	var configYaml std_msgs_msg.String
 	if _, err := s.TakeMessage(&configYaml); err != nil {
-		log.Println("failed to read config from topic:", err)
+		w.Logger().Errorln("failed to read config from topic:", err)
 		return
 	}
 	config, err := parseUpdatableConfigYAML(configYaml.Data)
 	if err != nil {
-		log.Println("failed to parse config:", err)
+		w.Logger().Errorln("failed to parse config:", err)
 		return
 	}
-	log.Println("got new config:", configYaml.Data)
+	w.Logger().Infoln("got new config:", configYaml.Data)
 	w.stopRecording()
 	w.nextConfig <- config
 }

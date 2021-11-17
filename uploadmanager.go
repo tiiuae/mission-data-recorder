@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -77,13 +76,15 @@ type uploadManager struct {
 	uploader       uploaderInterface
 	queue          bagQueue
 	mutex          sync.Mutex
+	logger         logger
 }
 
-func newUploadManager(workerCount int, uploader uploaderInterface) *uploadManager {
+func newUploadManager(workerCount int, uploader uploaderInterface, logger logger) *uploadManager {
 	return &uploadManager{
 		workerCount:    semaphore.NewWeighted(int64(workerCount)),
 		maxWorkerCount: workerCount,
 		uploader:       uploader,
+		logger:         logger,
 	}
 }
 
@@ -92,7 +93,7 @@ func (m *uploadManager) LoadExistingBags(dir string) error {
 	defer m.mutex.Unlock()
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			log.Println("error during loading existing bags: failed to access '"+dir+"':", err)
+			m.logger.Errorf(`error during loading existing bags: failed to access "%s": %v`, dir, err)
 		} else if globRegex.MatchString(path[len(dir):]) {
 			if bag := newBagMetadata(path, 0, false); bag != nil {
 				m.queue = append(m.queue, bag)
@@ -134,13 +135,13 @@ func (m *uploadManager) uploadNextBag(ctx context.Context) {
 	if bag == nil {
 		return
 	}
-	log.Printf("bag '%s' is ready", bag.path)
+	m.logger.Infof("bag '%s' is ready", bag.path)
 	err := uploader.UploadBag(ctx, bag)
 	if err == nil {
-		log.Printf("bag '%s' uploaded successfully", bag.path)
+		m.logger.Infof("bag '%s' uploaded successfully", bag.path)
 		m.removeBagFiles(bag)
 	} else {
-		log.Printf("failed to upload bag '%s': %v", bag.path, err)
+		m.logger.Errorf("failed to upload bag '%s': %v", bag.path, err)
 		if errors.Is(err, errEmptyBag) {
 			m.removeBagFiles(bag)
 		}
@@ -156,24 +157,24 @@ func (m *uploadManager) StartAllWorkers(ctx context.Context) {
 func (m *uploadManager) removeBagFiles(bag *bagMetadata) {
 	matches, err := filepath.Glob(escapeMatchPattern(bag.path) + "*")
 	if err != nil {
-		log.Printf("failed to remove files for '%s': %v", bag.path, err)
+		m.logger.Errorf("failed to remove files for '%s': %v", bag.path, err)
 		return
 	}
 	for _, match := range matches {
 		if err = os.Remove(match); err != nil {
-			log.Printf("failed to remove '%s': %v", match, err)
+			m.logger.Errorf("failed to remove '%s': %v", match, err)
 		}
 	}
 	bagDir := filepath.Dir(bag.path)
 	metadataFile := filepath.Join(bagDir, "metadata.yaml")
 	if err = os.Remove(metadataFile); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Printf("failed to remove '%s': %v", metadataFile, err)
+		m.logger.Errorf("failed to remove '%s': %v", metadataFile, err)
 	}
 	err = os.Remove(bagDir)
 	if err != nil &&
 		!errors.Is(err, syscall.ENOTEMPTY) &&
 		!errors.Is(err, syscall.EEXIST) {
-		log.Printf("failed to remove '%s': %v", bagDir, err)
+		m.logger.Errorf("failed to remove '%s': %v", bagDir, err)
 	}
 }
 

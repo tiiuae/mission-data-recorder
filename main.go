@@ -16,9 +16,16 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/pflag"
 	"github.com/tiiuae/mission-data-recorder/configloader"
+	"github.com/tiiuae/rclgo/pkg/rclgo"
 )
 
 //go:generate rclgo-gen generate -d msgs --message-module-prefix github.com/tiiuae/mission-data-recorder/msgs
+
+type logger interface {
+	Infof(string, ...interface{}) error
+	Errorf(string, ...interface{}) error
+	Errorln(...interface{}) error
+}
 
 const timeFormat = "2006-01-02T15:04:05.000000000Z07:00"
 
@@ -42,6 +49,7 @@ type configuration struct {
 	CompressionMode compressionMode `usage:"Compression mode to use"`
 
 	privateKey interface{}
+	rosArgs    *rclgo.Args
 }
 
 func loadConfig() (*configuration, error) {
@@ -56,7 +64,13 @@ func loadConfig() (*configuration, error) {
 		MaxUploadCount:  defaultMaxUploadCount,
 		CompressionMode: defaultCompressionMode,
 	}
+	rosArgs, restArgs, err := rclgo.ParseArgs(os.Args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ROS args: %w", err)
+	}
+	config.rosArgs = rosArgs
 	loader := configloader.New()
+	loader.Args = restArgs
 	loader.ConfigPath = "/enclave/mission_data_recorder.config"
 	loader.ConfigType = "yaml"
 	loader.EnvPrefix = "MISSION_DATA_RECORDER"
@@ -125,6 +139,8 @@ func run() (err error) {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	logger := rclgo.GetLogger(config.DeviceID).Child("mission_data_recorder")
+
 	initialConfig := &updatableConfig{
 		Topics:          config.Topics,
 		SizeThreshold:   config.SizeThreshold,
@@ -143,22 +159,33 @@ func run() (err error) {
 		CompressionMode: config.CompressionMode,
 		BackendURL:      config.BackendURL,
 	}
-	uploadMan := newUploadManager(config.MaxUploadCount, uploader)
-	if err = uploadMan.LoadExistingBags(config.DestDir); err != nil {
-		log.Println("failed to load existing bags:", err)
+	uploadMan := newUploadManager(config.MaxUploadCount, uploader, logger)
+
+	rclctx, err := rclgo.NewContext(nil, 0, config.rosArgs)
+	if err != nil {
+		return fmt.Errorf("failed to create rcl context: %w", err)
 	}
-	uploadMan.StartAllWorkers(ctx)
+	defer rclctx.Close()
 
 	configWatcher, err := newConfigWatcher(
 		config.DeviceID,
 		"mission_data_recorder",
 		initialConfig,
+		rclctx,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create config watcher: %w", err)
 	}
+	defer configWatcher.Close()
 	configWatcher.UploadManager = uploadMan
 	configWatcher.Recorder.Dir = config.DestDir
+	configWatcher.Recorder.Logger = logger
+
+	if err = uploadMan.LoadExistingBags(config.DestDir); err != nil {
+		logger.Errorln("failed to load existing bags:", err)
+	}
+	uploadMan.StartAllWorkers(ctx)
+
 	err = configWatcher.Start(ctx)
 	switch err {
 	case nil, context.Canceled:

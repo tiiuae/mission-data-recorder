@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,6 +32,8 @@ type missionDataRecorder struct {
 
 	// Directory where bags will be stored. This field must not be empty.
 	Dir string
+
+	Logger logger
 
 	// This is the subdirectory of Dir currently used by the recorder.
 	currentDir string
@@ -123,8 +124,8 @@ func (r *missionDataRecorder) startWatcher(
 				}
 				if event.Op&fsnotify.Create == fsnotify.Create {
 					if filepath.Clean(event.Name) == cleanedDir {
-						logFileWatchErr(watcher.Remove(filepath.Dir(r.currentDir)))
-						logFileWatchErr(watcher.Add(r.currentDir))
+						r.logFileWatchErr(watcher.Remove(filepath.Dir(r.currentDir)))
+						r.logFileWatchErr(watcher.Add(r.currentDir))
 					} else {
 						r.notifyIfBagReady(ctx, onBagReady, event.Name)
 					}
@@ -133,7 +134,7 @@ func (r *missionDataRecorder) startWatcher(
 				if !ok {
 					return
 				}
-				logFileWatchErr(err)
+				r.logFileWatchErr(err)
 			case <-ctx.Done():
 				return
 			}
@@ -145,9 +146,9 @@ func (r *missionDataRecorder) startWatcher(
 	return watcher, nil
 }
 
-func logFileWatchErr(err error) {
+func (r *missionDataRecorder) logFileWatchErr(err error) {
 	if err != nil {
-		log.Println("an error occured during file watching:", err)
+		r.Logger.Errorln("an error occured during file watching:", err)
 	}
 }
 
