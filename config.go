@@ -178,12 +178,19 @@ func (w *configWatcher) Close() error {
 }
 
 func (w *configWatcher) Start(ctx context.Context) error {
-	w.ws.RunGoroutine(ctx)
+	errs := make(chan error, 1)
+	go func() {
+		defer close(errs)
+		errs <- w.ws.Run(ctx)
+	}()
 	var currentConfig *updatableConfig
 	w.Logger().Info("starting mission-data-recorder")
 	for {
 		select {
 		case <-ctx.Done():
+			if err := <-errs; err != nil {
+				return err
+			}
 			return ctx.Err()
 		case <-w.retryTimer.C:
 			w.retryTimerActive = false
@@ -201,7 +208,7 @@ func (w *configWatcher) Start(ctx context.Context) error {
 func (w *configWatcher) startRecorder(ctx context.Context, config *updatableConfig) {
 	startRecorder := w.applyConfig(config)
 	ctx = w.newRecorderContext(ctx)
-	go w.UploadManager.StartWorker(ctx)
+	w.UploadManager.StartWorker(ctx)
 	if startRecorder {
 		err := w.Recorder.Start(ctx, w.UploadManager.AddBag)
 		switch err {

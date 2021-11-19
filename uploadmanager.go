@@ -77,6 +77,7 @@ type uploadManager struct {
 	queue          bagQueue
 	mutex          sync.Mutex
 	logger         logger
+	wg             sync.WaitGroup
 }
 
 func newUploadManager(workerCount int, uploader uploaderInterface, logger logger) *uploadManager {
@@ -117,12 +118,14 @@ func (m *uploadManager) SetConfig(workerCount int, mode compressionMode) {
 }
 
 func (m *uploadManager) StartWorker(ctx context.Context) {
-	for ctx.Err() == nil {
-		m.uploadNextBag(ctx)
+	if ctx.Err() == nil {
+		m.wg.Add(1)
+		go m.uploadNextBag(ctx)
 	}
 }
 
 func (m *uploadManager) uploadNextBag(ctx context.Context) {
+	defer m.wg.Done()
 	bag, uploader, release := func() (*bagMetadata, uploaderInterface, func(int64)) {
 		m.mutex.Lock()
 		defer m.mutex.Unlock()
@@ -150,8 +153,12 @@ func (m *uploadManager) uploadNextBag(ctx context.Context) {
 
 func (m *uploadManager) StartAllWorkers(ctx context.Context) {
 	for i := 0; i < m.maxWorkerCount; i++ {
-		go m.StartWorker(ctx)
+		m.StartWorker(ctx)
 	}
+}
+
+func (m *uploadManager) Wait() {
+	m.wg.Wait()
 }
 
 func (m *uploadManager) removeBagFiles(bag *bagMetadata) {
@@ -182,7 +189,7 @@ func (m *uploadManager) AddBag(ctx context.Context, bag *bagMetadata) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	heap.Push(&m.queue, bag)
-	go m.StartWorker(ctx)
+	m.StartWorker(ctx)
 }
 
 func (m *uploadManager) nextBag() *bagMetadata {

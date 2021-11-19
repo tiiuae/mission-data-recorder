@@ -185,6 +185,7 @@ func run() (err error) {
 		logger.Errorln("failed to load existing bags:", err)
 	}
 	uploadMan.StartAllWorkers(ctx)
+	defer uploadMan.Wait()
 
 	err = configWatcher.Start(ctx)
 	switch err {
