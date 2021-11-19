@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -91,7 +92,7 @@ func (p *pipe) copy() {
 		err      error
 	)
 	defer func() {
-		if modifier == nil {
+		if modifier == nil || reflect.ValueOf(modifier).IsNil() {
 			p.closeErr = err
 		} else {
 			p.closeErr = modifier.Close()
