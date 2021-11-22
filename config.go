@@ -155,7 +155,7 @@ func newConfigWatcher(
 	}
 	defer onErr(&err, w.Node.Close)
 	sub, err := w.Node.NewSubscription(
-		nodeName+"/config",
+		"~/config",
 		std_msgs_msg.StringTypeSupport,
 		w.onUpdate,
 	)

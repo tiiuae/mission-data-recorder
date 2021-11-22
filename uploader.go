@@ -118,7 +118,7 @@ type fileUploader struct {
 	SigningKey      interface{}
 	TokenLifetime   time.Duration
 	DeviceID        string
-	ProjectID       string
+	TenantID        string
 	CompressionMode compressionMode
 	BackendURL      string
 }
@@ -132,21 +132,21 @@ func (u *fileUploader) WithCompression(mode compressionMode) uploaderInterface {
 func (u *fileUploader) createToken(bagName string) (string, error) {
 	type jwtClaims struct {
 		DeviceID string `json:"deviceId"`
+		TenantID string `json:"tenantId"`
 		BagName  string `json:"bagName"`
 		jwt.RegisteredClaims
 	}
 	now := time.Now()
 	token := jwt.NewWithClaims(u.SigningMethod, &jwtClaims{
 		DeviceID: u.DeviceID,
+		TenantID: u.TenantID,
 		BagName:  bagName,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(u.TokenLifetime)),
-			Audience:  jwt.ClaimStrings{u.ProjectID},
 		},
 	})
-	signedToken, err := token.SignedString(u.SigningKey)
-	return signedToken, err
+	return token.SignedString(u.SigningKey)
 }
 
 func wrapErr(format string, err *error, a ...interface{}) {
