@@ -36,8 +36,8 @@ const (
 )
 
 type configuration struct {
-	ProjectID       string          `usage:"Google Cloud project id"`
 	DeviceID        string          `env:"DRONE_DEVICE_ID" usage:"The provisioned device id (required)"`
+	TenantID        string          `env:"DRONE_TENANT_ID" usage:"The tenant this drone belongs to"`
 	BackendURL      string          `usage:"URL to the backend server (required)"`
 	PrivateKeyPath  string          `config:"private_key" flag:"private-key" env:"MISSION_DATA_RECORDER_PRIVATE_KEY" usage:"The private key used for authentication"`
 	KeyAlgorithm    string          `usage:"Supported values are RS256 and ES256"`
@@ -54,8 +54,8 @@ type configuration struct {
 
 func loadConfig() (*configuration, error) {
 	config := &configuration{
-		ProjectID:       "auto-fleet-mgnt",
 		DeviceID:        "",
+		TenantID:        "fleet-registry",
 		BackendURL:      "",
 		PrivateKeyPath:  "/enclave/rsa_private.pem",
 		KeyAlgorithm:    "RS256",
@@ -155,7 +155,7 @@ func run() (err error) {
 		SigningKey:      config.privateKey,
 		TokenLifetime:   2 * time.Minute,
 		DeviceID:        config.DeviceID,
-		ProjectID:       config.ProjectID,
+		TenantID:        config.TenantID,
 		CompressionMode: config.CompressionMode,
 		BackendURL:      config.BackendURL,
 	}
