@@ -363,6 +363,8 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/subosito/gotenv v1.2.0 h1:Slr1R9HxAlEKefgq5jn9U+DnETlIUa6HfgEzj0g5d7s=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
+github.com/tiiuae/go-configloader v0.0.0-20211122143239-2c49bf0e469b h1:6kP1kls0ReCfOMW8FTwRG4sDBoV14GV7W7H5bRhvpgU=
+github.com/tiiuae/go-configloader v0.0.0-20211122143239-2c49bf0e469b/go.mod h1:hmJO8xeiEnShcV3EwLXaNAukIBY5jpuMnERRjmD9A3w=
 github.com/tiiuae/rclgo v0.0.0-20211115092101-6339785a965b h1:ldOvUIGF/V9JWANYKhZHvK1ZIkMsCiEsxlUNm7fbNBo=
 github.com/tiiuae/rclgo v0.0.0-20211115092101-6339785a965b/go.mod h1:IZsoKK+AmUTFRmEO9nvra2ys4Ax+gHD1Cc5z9tTM/u4=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=

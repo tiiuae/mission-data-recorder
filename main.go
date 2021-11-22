@@ -15,7 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/pflag"
-	"github.com/tiiuae/mission-data-recorder/configloader"
+	"github.com/tiiuae/go-configloader"
 	"github.com/tiiuae/rclgo/pkg/rclgo"
 )
 
