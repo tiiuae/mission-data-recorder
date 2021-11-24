@@ -1,20 +1,14 @@
-FROM ghcr.io/tiiuae/tii-golang-ros:latest AS builder
-
-SHELL [ "/bin/bash", "-c" ]
-
-ENV GOPATH=/go
-ENV PATH="${PATH}:${GOPATH}/bin"
+FROM ghcr.io/tiiuae/tii-golang-ros:foxy-go1.17 AS builder
 
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download && \
     go install github.com/tiiuae/rclgo/cmd/rclgo-gen
 COPY . ./
-RUN . /opt/ros/foxy/setup.sh && \
-    go generate && \
+RUN go generate && \
     go build -o mission-data-recorder
 
-FROM ghcr.io/tiiuae/tii-ubuntu-ros:latest
+FROM ghcr.io/tiiuae/tii-ubuntu-ros:foxy
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ros-foxy-rclc && \
