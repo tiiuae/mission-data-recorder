@@ -1,4 +1,4 @@
-FROM ghcr.io/tiiuae/tii-golang-ros:latest AS builder
+FROM ghcr.io/tiiuae/tii-golang-ros:galactic-go1.17 AS builder
 
 WORKDIR /build
 COPY go.mod go.sum ./
@@ -8,12 +8,13 @@ COPY . ./
 RUN go generate && \
     go build -o mission-data-recorder
 
-FROM ghcr.io/tiiuae/tii-ubuntu-ros:latest
+FROM ghcr.io/tiiuae/tii-ubuntu-ros:galactic
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ros-foxy-rclc && \
+    apt-get install -y --no-install-recommends ros-$ROS_DISTRO-rclc && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY --from=builder /build/run.sh /build/mission-data-recorder ./
-ENTRYPOINT [ "./run.sh", "./mission-data-recorder" ]
+COPY --from=builder /build/mission-data-recorder ./
+ENV APP=/app/mission-data-recorder
+ENTRYPOINT [ "bash", "-c", "${APP} $@", "${APP}" ]

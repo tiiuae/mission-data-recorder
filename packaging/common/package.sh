@@ -144,10 +144,10 @@ $(printf '%*s' "${#title}" | tr ' ' "-")
 * commit: ${git_commit_hash}
 EOF_CHANGELOG
 
-	bloom-generate rosdebian --os-name ubuntu --os-version focal --ros-distro foxy --place-template-files \
+	bloom-generate rosdebian --os-name ubuntu --os-version focal --ros-distro $ROS_DISTRO --place-template-files \
 	&& sed -i "s/@(DebianInc)@(Distribution)/@(DebianInc)/" debian/changelog.em \
 	&& [ ! "$distr" = "" ] && sed -i "s/@(Distribution)/${distr}/" debian/changelog.em || : \
-	&& bloom-generate rosdebian --os-name ubuntu --os-version focal --ros-distro foxy --process-template-files -i ${build_nbr}${git_version_string} \
+	&& bloom-generate rosdebian --os-name ubuntu --os-version focal --ros-distro $ROS_DISTRO --process-template-files -i ${build_nbr}${git_version_string} \
 	&& sed -i 's/^\tdh_shlibdeps.*/& --dpkg-shlibdeps-params=--ignore-missing-info/g' debian/rules \
 	&& fakeroot debian/rules clean \
 	&& fakeroot debian/rules binary || exit 1

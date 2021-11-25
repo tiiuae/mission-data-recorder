@@ -161,7 +161,7 @@ func run() (err error) {
 	}
 	uploadMan := newUploadManager(config.MaxUploadCount, uploader, logger)
 
-	rclctx, err := rclgo.NewContext(nil, 0, config.rosArgs)
+	rclctx, err := rclgo.NewContext(0, config.rosArgs)
 	if err != nil {
 		return fmt.Errorf("failed to create rcl context: %w", err)
 	}

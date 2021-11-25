@@ -1,8 +1,8 @@
 package internal
 
 /*
-#cgo CXXFLAGS: -I /opt/ros/foxy/include -std=c++17
-#cgo LDFLAGS: -L /opt/ros/foxy/lib -Wl,-rpath=/opt/ros/foxy/lib
+#cgo CXXFLAGS: -I /opt/ros/galactic/include -std=c++17
+#cgo LDFLAGS: -L /opt/ros/galactic/lib -Wl,-rpath=/opt/ros/galactic/lib
 #cgo LDFLAGS: -lrosbag2_cpp -lrosbag2_storage -lrcutils -lrclcpp
 #cgo LDFLAGS: -lstd_msgs__rosidl_typesupport_cpp
 

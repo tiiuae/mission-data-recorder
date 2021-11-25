@@ -107,7 +107,7 @@ func TestConfigWatcher(t *testing.T) {
 	}()
 	Convey("Scenario: configWatcher manages a missionDataRecorder and restarts it when configuration changes", t, func() {
 		Convey("Create publishers", func() {
-			rclctx, err := rclgo.NewContext(nil, 0, nil)
+			rclctx, err := rclgo.NewContext(0, nil)
 			So(err, ShouldBeNil)
 			configNode, err := rclctx.NewNode("config_node", "/test")
 			So(err, ShouldBeNil)

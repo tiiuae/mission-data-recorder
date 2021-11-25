@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	std_msgs_msg "github.com/tiiuae/mission-data-recorder/msgs/std_msgs/msg"
 	"github.com/tiiuae/rclgo/pkg/rclgo"
 	"gopkg.in/yaml.v3"
@@ -126,8 +125,6 @@ type configWatcher struct {
 
 	nextConfig chan *updatableConfig
 
-	ws *rclgo.WaitSet
-
 	stopRecorder      context.CancelFunc
 	stopRecorderMutex sync.Mutex
 
@@ -154,7 +151,7 @@ func newConfigWatcher(
 		return nil, err
 	}
 	defer onErr(&err, w.Node.Close)
-	sub, err := w.Node.NewSubscription(
+	_, err = w.Node.NewSubscription(
 		"~/config",
 		std_msgs_msg.StringTypeSupport,
 		w.onUpdate,
@@ -162,26 +159,14 @@ func newConfigWatcher(
 	if err != nil {
 		return nil, err
 	}
-	w.ws, err = ctx.NewWaitSet(500 * time.Millisecond)
-	if err != nil {
-		return nil, err
-	}
-	w.ws.AddSubscriptions(sub)
 	return w, nil
-}
-
-func (w *configWatcher) Close() error {
-	return multierror.Append(
-		w.Node.Close(),
-		w.ws.Close(),
-	).ErrorOrNil()
 }
 
 func (w *configWatcher) Start(ctx context.Context) error {
 	errs := make(chan error, 1)
 	go func() {
 		defer close(errs)
-		errs <- w.ws.Run(ctx)
+		errs <- w.Spin(ctx)
 	}()
 	var currentConfig *updatableConfig
 	w.Logger().Info("starting mission-data-recorder")

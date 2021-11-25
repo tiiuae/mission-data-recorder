@@ -11,7 +11,7 @@ require (
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/pflag v1.0.5
 	github.com/tiiuae/go-configloader v0.0.0-20211122143239-2c49bf0e469b
-	github.com/tiiuae/rclgo v0.0.0-20211115092101-6339785a965b
+	github.com/tiiuae/rclgo v0.0.0-20211125134735-d98ee1f44fc7
 	github.com/ulikunitz/xz v0.5.10
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
