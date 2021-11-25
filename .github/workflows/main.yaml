@@ -91,8 +91,8 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=sha,format=short
-            type=sha,format=long
             type=raw,value={{branch}}-{{sha}}-{{date 'x'}}
+            type=raw,value=latest
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
