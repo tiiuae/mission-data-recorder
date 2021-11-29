@@ -19,23 +19,7 @@ RUN echo "deb [trusted=yes] https://artifactory.ssrc.fi/artifactory/debian-publi
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     debhelper \
     dh-make \
-    fakeroot \
-    ros-foxy-ros-core \
-    ros-foxy-ros2bag \
-    ros-foxy-rosbag2 \
-    ros-foxy-rosbag2-compression \
-    ros-foxy-rosbag2-converter-default-plugins \
-    ros-foxy-rosbag2-cpp \
-    ros-foxy-rosbag2-storage \
-    ros-foxy-rosbag2-storage-default-plugins \
-    ros-foxy-rosbag2-transport \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV GO_VERSION=1.17.3
-RUN curl "https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz"\
-    | tar -C /usr/local -xz
-ENV GOPATH=/go
-ENV PATH="/usr/local/go/bin:${PATH}:${GOPATH}/bin"
+    fakeroot
 
 WORKDIR /build
 
