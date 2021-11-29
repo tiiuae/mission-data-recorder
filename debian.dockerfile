@@ -9,15 +9,7 @@ ARG GIT_VER
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     debhelper \
     dh-make \
-    fakeroot \
-    ros-$ROS_DISTRO-ros2bag \
-    ros-$ROS_DISTRO-rosbag2 \
-    ros-$ROS_DISTRO-rosbag2-compression \
-    ros-$ROS_DISTRO-rosbag2-converter-default-plugins \
-    ros-$ROS_DISTRO-rosbag2-cpp \
-    ros-$ROS_DISTRO-rosbag2-storage \
-    ros-$ROS_DISTRO-rosbag2-storage-default-plugins \
-    ros-$ROS_DISTRO-rosbag2-transport
+    fakeroot
 
 WORKDIR /build
 
