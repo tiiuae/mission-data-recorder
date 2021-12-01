@@ -1,5 +1,5 @@
 # fog-sw BUILDER
-FROM ros:foxy-ros-base as fog-sw-builder
+FROM ros:galactic-ros-base as fog-sw-builder
 
 ARG BUILD_NUMBER
 ARG COMMIT_ID
@@ -21,15 +21,15 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     debhelper \
     dh-make \
     fakeroot \
-    ros-foxy-ros-core \
-    ros-foxy-ros2bag \
-    ros-foxy-rosbag2 \
-    ros-foxy-rosbag2-compression \
-    ros-foxy-rosbag2-converter-default-plugins \
-    ros-foxy-rosbag2-cpp \
-    ros-foxy-rosbag2-storage \
-    ros-foxy-rosbag2-storage-default-plugins \
-    ros-foxy-rosbag2-transport \
+    ros-galactic-ros-core \
+    ros-galactic-ros2bag \
+    ros-galactic-rosbag2 \
+    ros-galactic-rosbag2-compression \
+    ros-galactic-rosbag2-converter-default-plugins \
+    ros-galactic-rosbag2-cpp \
+    ros-galactic-rosbag2-storage \
+    ros-galactic-rosbag2-storage-default-plugins \
+    ros-galactic-rosbag2-transport \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/usr/lib/go-1.16/bin/:${PATH}"
