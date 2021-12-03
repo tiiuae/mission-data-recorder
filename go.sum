@@ -193,11 +193,10 @@ github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81P
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
-github.com/tiiuae/rclgo v0.0.0-20210610134811-3e6a00b423fa/go.mod h1:EmiKpPIJhACrcmT+2IP21nbaLuZ/J9hTGAOXHzqQyEw=
-github.com/tiiuae/rclgo v0.0.0-20210611063320-9f244c781620 h1:gtIFVOYD/f4S9Hc92kkYh5ss8Zq4OiZDF6ypOk9ph1M=
-github.com/tiiuae/rclgo v0.0.0-20210611063320-9f244c781620/go.mod h1:EmiKpPIJhACrcmT+2IP21nbaLuZ/J9hTGAOXHzqQyEw=
-github.com/tiiuae/rclgo-msgs v0.0.0-20210610140639-51254eed4a5b h1:Y986SVd5jXjDrIB6u2wwAsuaku028pleRYWppNlBc20=
-github.com/tiiuae/rclgo-msgs v0.0.0-20210610140639-51254eed4a5b/go.mod h1:0F6FyjJQB0ikCH0/6pdoZoXqro3bzRO1O8rO827HAj0=
+github.com/tiiuae/rclgo v0.0.0-20211202115940-3c546160401d h1:hOeeZgWRY1tNMxFtqblTblv39s8OdJovgsBSt3r4ipQ=
+github.com/tiiuae/rclgo v0.0.0-20211202115940-3c546160401d/go.mod h1:EmiKpPIJhACrcmT+2IP21nbaLuZ/J9hTGAOXHzqQyEw=
+github.com/tiiuae/rclgo-msgs v0.0.0-20211203090923-61abf97cea1d h1:OjNu1Vh2BAQu9jetWTjJr1ltedHiAma7HS316HqFDig=
+github.com/tiiuae/rclgo-msgs v0.0.0-20211203090923-61abf97cea1d/go.mod h1:03HwAVYfsszxj9xo19G61cEXTrFK21mcPJ+yDZ7LqYQ=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
