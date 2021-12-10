@@ -13,7 +13,7 @@ RUN rm /etc/apt/sources.list.d/ros2-latest.list && \
     echo "deb http://packages.ros.org/ros2/ubuntu focal main" > /etc/apt/sources.list.d/ros2-latest.list && \
     apt-get update
 
-RUN echo "deb [trusted=yes] https://artifactory.ssrc.fi/artifactory/debian-public-local focal fog-sw" >> /etc/apt/sources.list
+RUN echo "deb [trusted=yes] https://ssrc.jfrog.io/artifactory/ssrc-debian-public-remote focal fog-sw" >> /etc/apt/sources.list
 
 # Install build dependencies
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
