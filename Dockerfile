@@ -2,8 +2,7 @@ FROM ghcr.io/tiiuae/tii-golang-ros:foxy-go1.17 AS builder
 
 WORKDIR /build
 COPY go.mod go.sum ./
-RUN go mod download && \
-    go install github.com/tiiuae/rclgo/cmd/rclgo-gen
+RUN go mod download
 COPY . ./
 RUN go generate && \
     go build -o mission-data-recorder
