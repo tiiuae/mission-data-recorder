@@ -19,7 +19,7 @@ import (
 	"github.com/tiiuae/rclgo/pkg/rclgo"
 )
 
-//go:generate rclgo-gen generate -d msgs --message-module-prefix github.com/tiiuae/mission-data-recorder/msgs
+//go:generate go run github.com/tiiuae/rclgo/cmd/rclgo-gen generate -d msgs
 
 type logger interface {
 	Infof(string, ...interface{}) error
