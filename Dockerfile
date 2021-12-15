@@ -116,5 +116,4 @@ RUN apt-get update && \
 
 WORKDIR /app
 COPY --from=builder /build/mission-data-recorder ./
-ENV APP=/app/mission-data-recorder
-ENTRYPOINT [ "bash", "-c", "${APP} $@", "${APP}" ]
+ENTRYPOINT [ "rosexec", "./mission-data-recorder" ]
