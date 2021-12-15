@@ -133,5 +133,5 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY --from=builder /build/run.sh /build/mission-data-recorder ./
-ENTRYPOINT [ "./run.sh", "./mission-data-recorder" ]
+COPY --from=builder /build/mission-data-recorder ./
+ENTRYPOINT [ "rosexec", "./mission-data-recorder" ]
