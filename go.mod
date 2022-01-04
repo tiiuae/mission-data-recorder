@@ -6,12 +6,11 @@ require (
 	github.com/bradleyjkemp/cupaloy/v2 v2.6.0
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/golang-jwt/jwt/v4 v4.1.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/mattn/go-sqlite3 v1.14.9
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/pflag v1.0.5
 	github.com/tiiuae/go-configloader v0.0.0-20211122143239-2c49bf0e469b
-	github.com/tiiuae/rclgo v0.0.0-20211125134735-d98ee1f44fc7
+	github.com/tiiuae/rclgo v0.0.0-20220104161233-a345bf8f302f
 	github.com/ulikunitz/xz v0.5.10
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
@@ -22,6 +21,7 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20210202160940-bed99a852dfe // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/joho/godotenv v1.4.0 // indirect
