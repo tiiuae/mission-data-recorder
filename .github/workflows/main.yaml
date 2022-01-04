@@ -86,7 +86,6 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=sha,format=short
-            type=raw,value={{branch}}-{{sha}}-{{date 'x'}}
             type=raw,value=latest
 
       - name: Login to GitHub Container Registry
