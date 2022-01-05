@@ -4,6 +4,7 @@ FROM ghcr.io/tiiuae/tii-golang-ros:galactic-go1.17 AS fog-sw-builder
 ARG BUILD_NUMBER
 ARG COMMIT_ID
 ARG GIT_VER
+ARG PACKAGE_VERSION
 
 # Install build dependencies
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
@@ -19,6 +20,7 @@ RUN params="-m $(realpath .) " \
     && [ ! "${BUILD_NUMBER}" = "" ] && params="$params -b ${BUILD_NUMBER}" || : \
     && [ ! "${COMMIT_ID}" = "" ] && params="$params -c ${COMMIT_ID}" || : \
     && [ ! "${GIT_VER}" = "" ] && params="$params -g ${GIT_VER}" || : \
+    && [ ! "${PACKAGE_VERSION}" = "" ] && params="$params -v ${PACKAGE_VERSION}" || : \
     && ./packaging/common/package.sh $params
 
 FROM scratch
