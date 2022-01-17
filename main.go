@@ -135,6 +135,9 @@ func run() (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+	if config == nil {
+		return nil
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
