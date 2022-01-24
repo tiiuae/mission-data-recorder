@@ -27,6 +27,12 @@ type missionDataRecorder struct {
 	// SizeThreshold is non-positive the file is never split.
 	SizeThreshold int
 
+	// Time thershold in seconds.
+	// After TimeThreshold is reached the bag is split. If
+	// TimeThreshold is negative the file is never split.
+	// If the threshold is not provided or 0, default value of 600 is used.
+	TimeThreshold int
+
 	// Extra arguments passed to ros bag record command.
 	ExtraArgs []string
 
@@ -39,8 +45,11 @@ type missionDataRecorder struct {
 	currentDir string
 }
 
-func (r *missionDataRecorder) Start(ctx context.Context, onBagReady onBagReady) error {
-	if err := os.MkdirAll(r.Dir, 0755); err != nil {
+func (r *missionDataRecorder) Start(
+	ctx context.Context,
+	onBagReady onBagReady,
+) error {
+	if err := os.MkdirAll(r.Dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", r.Dir, err)
 	}
 	r.currentDir = filepath.Join(r.Dir, time.Now().UTC().Format(timeFormat))
@@ -88,6 +97,13 @@ func (r *missionDataRecorder) newCommand(ctx context.Context) *exec.Cmd {
 		rosCmd = "ros2"
 	}
 	args := []string{"bag", "record", "--output", r.currentDir}
+	if r.TimeThreshold >= 0 {
+		threshold := r.TimeThreshold
+		if r.TimeThreshold == 0 {
+			threshold = defaultTimeThreshold
+		}
+		args = append(args, "-d", strconv.Itoa(threshold))
+	}
 	if r.SizeThreshold > 0 {
 		args = append(args, "--max-bag-size", strconv.Itoa(r.SizeThreshold))
 	}
@@ -107,9 +123,9 @@ func (r *missionDataRecorder) newCommand(ctx context.Context) *exec.Cmd {
 func (r *missionDataRecorder) startWatcher(
 	ctx context.Context, onBagReady onBagReady,
 ) (*fsnotify.Watcher, error) {
-	// The watcher first watches the parent directory of r.currentDir to detect the
-	// creation of r.currentDir by the ros2 bag record command. Then the parent is
-	// unwatched and r.currentDir is added to the watchlist.
+	// The watcher first watches the parent directory of r.currentDir to detect
+	// the creation of r.currentDir by the ros2 bag record command.
+	// Then the parent is unwatched and r.currentDir is added to the watchlist.
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -124,7 +140,9 @@ func (r *missionDataRecorder) startWatcher(
 				}
 				if event.Op&fsnotify.Create == fsnotify.Create {
 					if filepath.Clean(event.Name) == cleanedDir {
-						r.logFileWatchErr(watcher.Remove(filepath.Dir(r.currentDir)))
+						r.logFileWatchErr(
+							watcher.Remove(filepath.Dir(r.currentDir)),
+						)
 						r.logFileWatchErr(watcher.Add(r.currentDir))
 					} else {
 						r.notifyIfBagReady(ctx, onBagReady, event.Name)

@@ -90,6 +90,7 @@ func (s *topicList) UnmarshalYAML(val *yaml.Node) error {
 type updatableConfig struct {
 	Topics          topicList       `yaml:"topics"`
 	SizeThreshold   int             `yaml:"size_threshold"`
+	TimeThreshold   int             `yaml:"time_threshold"`
 	ExtraArgs       []string        `yaml:"extra_args"`
 	MaxUploadCount  int             `yaml:"max_upload_count"`
 	CompressionMode compressionMode `yaml:"compression_mode"`
@@ -98,6 +99,7 @@ type updatableConfig struct {
 func parseUpdatableConfigYAML(s string) (*updatableConfig, error) {
 	config := updatableConfig{
 		SizeThreshold:   defaultSizeThreshold,
+		TimeThreshold:   defaultTimeThreshold,
 		MaxUploadCount:  defaultMaxUploadCount,
 		CompressionMode: defaultCompressionMode,
 	}
