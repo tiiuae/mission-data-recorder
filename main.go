@@ -42,7 +42,7 @@ type configuration struct {
 	BackendURL      string          `usage:"URL to the backend server (required)"`
 	PrivateKeyPath  string          `env:"MISSION_DATA_RECORDER_PRIVATE_KEY" usage:"The private key used for authentication" config:"private_key" flag:"private-key"`
 	KeyAlgorithm    string          `usage:"Supported values are RS256 and ES256"`
-	Topics          topicList       `usage:"Comma-separated list of topics to record. Special value "*" means everything. If empty, recording is not started."`
+	Topics          topicList       `usage:"Comma-separated list of topics to record. Special value \"*\" means everything. If empty, recording is not started."`
 	DestDir         string          `usage:"The directory where recordings are stored"`
 	SizeThreshold   int             `usage:"Rosbags will be split when this size in bytes is reached"`
 	TimeThreshold   int             `usage:"Rosbags will be split when this time in seconds is reached"`

@@ -49,7 +49,7 @@ func (r *missionDataRecorder) Start(
 	ctx context.Context,
 	onBagReady onBagReady,
 ) error {
-	if err := os.MkdirAll(r.Dir, 0755); err != nil {
+	if err := os.MkdirAll(r.Dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", r.Dir, err)
 	}
 	r.currentDir = filepath.Join(r.Dir, time.Now().UTC().Format(timeFormat))
@@ -124,10 +124,8 @@ func (r *missionDataRecorder) startWatcher(
 	ctx context.Context, onBagReady onBagReady,
 ) (*fsnotify.Watcher, error) {
 	// The watcher first watches the parent directory of r.currentDir to detect
-	// the
-	// creation of r.currentDir by the ros2 bag record command. Then the parent
-	// is
-	// unwatched and r.currentDir is added to the watchlist.
+	// the creation of r.currentDir by the ros2 bag record command.
+	// Then the parent is unwatched and r.currentDir is added to the watchlist.
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
