@@ -99,7 +99,7 @@ func (r *missionDataRecorder) newCommand(ctx context.Context) *exec.Cmd {
 		args = append(args, r.Topics...)
 	}
 	cmd := exec.CommandContext(ctx, rosCmd, args...)
-	cmd.Stdout = os.Stderr
+	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd
 }
