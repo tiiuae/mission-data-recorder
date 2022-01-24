@@ -31,6 +31,7 @@ const timeFormat = "2006-01-02T15:04:05.000000000Z07:00"
 
 const (
 	defaultSizeThreshold   = 10_000_000
+	defaultTimeThreshold   = 600
 	defaultMaxUploadCount  = 5
 	defaultCompressionMode = compressionNone
 )
@@ -39,11 +40,12 @@ type configuration struct {
 	DeviceID        string          `env:"DRONE_DEVICE_ID" usage:"The provisioned device id (required)"`
 	TenantID        string          `env:"DRONE_TENANT_ID" usage:"The tenant this drone belongs to"`
 	BackendURL      string          `usage:"URL to the backend server (required)"`
-	PrivateKeyPath  string          `config:"private_key" flag:"private-key" env:"MISSION_DATA_RECORDER_PRIVATE_KEY" usage:"The private key used for authentication"`
+	PrivateKeyPath  string          `env:"MISSION_DATA_RECORDER_PRIVATE_KEY" usage:"The private key used for authentication" config:"private_key" flag:"private-key"`
 	KeyAlgorithm    string          `usage:"Supported values are RS256 and ES256"`
-	Topics          topicList       `usage:"Comma-separated list of topics to record. Special value \"*\" means everything. If empty, recording is not started."`
+	Topics          topicList       `usage:"Comma-separated list of topics to record. Special value "*" means everything. If empty, recording is not started."`
 	DestDir         string          `usage:"The directory where recordings are stored"`
 	SizeThreshold   int             `usage:"Rosbags will be split when this size in bytes is reached"`
+	TimeThreshold   int             `usage:"Rosbags will be split when this time in seconds is reached"`
 	ExtraArgs       []string        `usage:"Comma-separated list of extra arguments passed to ros bag record command after all other arguments passed to the command by this program."`
 	MaxUploadCount  int             `usage:"Maximum number of concurrent file uploads. If zero, file uploading is disabled."`
 	CompressionMode compressionMode `usage:"Compression mode to use"`
@@ -61,6 +63,7 @@ func loadConfig() (*configuration, error) {
 		KeyAlgorithm:    "RS256",
 		DestDir:         ".",
 		SizeThreshold:   defaultSizeThreshold,
+		TimeThreshold:   defaultSizeThreshold,
 		MaxUploadCount:  defaultMaxUploadCount,
 		CompressionMode: defaultCompressionMode,
 	}
@@ -139,7 +142,11 @@ func run() (err error) {
 		return nil
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
 	defer stop()
 
 	logger := rclgo.GetLogger(config.DeviceID).Child("mission_data_recorder")
@@ -147,6 +154,7 @@ func run() (err error) {
 	initialConfig := &updatableConfig{
 		Topics:          config.Topics,
 		SizeThreshold:   config.SizeThreshold,
+		TimeThreshold:   config.TimeThreshold,
 		ExtraArgs:       config.ExtraArgs,
 		MaxUploadCount:  config.MaxUploadCount,
 		CompressionMode: config.CompressionMode,
