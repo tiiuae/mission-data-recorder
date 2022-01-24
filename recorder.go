@@ -29,7 +29,7 @@ type missionDataRecorder struct {
 
 	// Time thershold in seconds.
 	// After TimeThreshold is reached the bag is split. If
-	// TimeThreshold is non-positive the file is never split.
+	// TimeThreshold is negative the file is never split.
 	// If the threshold is not provided or 0, default value of 600 is used.
 	TimeThreshold int
 
