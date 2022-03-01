@@ -49,9 +49,10 @@ func TestUploadManager(t *testing.T) {
 			bagCount: 100,
 			done:     make(chan struct{}),
 		}
-		uploadMan = newUploadManager(workerCount, &uploader,fakeLogger{})
+		uploadMan = newUploadManager(workerCount, &uploader, fakeLogger{})
 		ctx       = context.Background()
-		rnd       = rand.New(rand.NewSource(42))
+		//#nosec G404 -- Tests should be deterministic.
+		rnd = rand.New(rand.NewSource(42))
 	)
 	Convey("Scenario: uploadManager works correctly", t, func() {
 		Convey("The correct number of bags are uploaded", func() {

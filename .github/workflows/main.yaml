@@ -94,3 +94,24 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  run-linter:
+    runs-on: ubuntu-latest
+    container: ghcr.io/tiiuae/tii-golang-ros:galactic-go1.17
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Prepare package list for linter
+        run: |
+          go generate
+          lint_dirs=$(
+            go list -f '{{.Dir}}' ./... \
+            | xargs realpath --relative-to=. \
+            | grep -v '^msgs' \
+            | tr '\n' ' '
+          )
+          echo "lint_dirs='$lint_dirs'" >> "$GITHUB_ENV"
+
+      - uses: golangci/golangci-lint-action@v2
+        with:
+          args: ${{ env.lint_dirs }}

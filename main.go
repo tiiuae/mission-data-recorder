@@ -191,6 +191,7 @@ func run() (err error) {
 	defer uploadMan.Wait()
 
 	err = configWatcher.Start(ctx)
+	//nolint:errorlint // Wrapped errors are deliberately ignored.
 	switch err {
 	case nil, context.Canceled:
 		return nil

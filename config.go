@@ -14,7 +14,7 @@ import (
 
 func onErr(err *error, f func() error) {
 	if *err != nil {
-		f()
+		f() //nolint:errcheck
 	}
 }
 
@@ -27,6 +27,7 @@ func (l *topicList) Type() string {
 	return "topics"
 }
 
+//nolint:unparam // Implements the interface pflag.Value.
 func (l *topicList) Set(val string) error {
 	switch val {
 	case "":
@@ -67,23 +68,23 @@ func (l *topicList) Parse(val interface{}) (interface{}, error) {
 	return nil, errors.New(errMsg)
 }
 
-func (s *topicList) String() string {
-	if s.All {
+func (l *topicList) String() string {
+	if l.All {
 		return "*"
 	}
-	return strings.Join(s.Topics, ",")
+	return strings.Join(l.Topics, ",")
 }
 
-func (s *topicList) UnmarshalYAML(val *yaml.Node) error {
+func (l *topicList) UnmarshalYAML(val *yaml.Node) error {
 	var decoded interface{}
 	if err := val.Decode(&decoded); err != nil {
 		return err
 	}
-	ts, err := s.Parse(decoded)
+	ts, err := l.Parse(decoded)
 	if err != nil {
 		return err
 	}
-	*s = ts.(topicList)
+	*l = ts.(topicList)
 	return nil
 }
 
@@ -196,6 +197,7 @@ func (w *configWatcher) startRecorder(ctx context.Context, config *updatableConf
 	w.UploadManager.StartWorker(ctx)
 	if startRecorder {
 		err := w.Recorder.Start(ctx, w.UploadManager.AddBag)
+		//nolint:errorlint // Wrapped errors are deliberately ignored.
 		switch err {
 		case nil, context.Canceled:
 		default:

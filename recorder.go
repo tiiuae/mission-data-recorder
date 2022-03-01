@@ -40,6 +40,7 @@ type missionDataRecorder struct {
 }
 
 func (r *missionDataRecorder) Start(ctx context.Context, onBagReady onBagReady) error {
+	//#nosec G301 -- The directory doesn't contain secrets.
 	if err := os.MkdirAll(r.Dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", r.Dir, err)
 	}
@@ -59,11 +60,15 @@ func (r *missionDataRecorder) Start(ctx context.Context, onBagReady onBagReady) 
 	go func() {
 		select {
 		case <-stopped:
-			cmd.Process.Kill()
+			if err := cmd.Process.Kill(); err != nil {
+				r.Logger.Errorf("failed to kill recorder process: %v", err)
+			}
 			stopErr <- nil
 		case <-ctx.Done():
 			if err := cmd.Process.Signal(os.Interrupt); err != nil {
-				cmd.Process.Kill()
+				if killErr := cmd.Process.Kill(); killErr != nil {
+					r.Logger.Errorf("failed to kill recorder process: %v", killErr)
+				}
 				stopErr <- err
 			} else {
 				stopErr <- nil
@@ -98,6 +103,7 @@ func (r *missionDataRecorder) newCommand(ctx context.Context) *exec.Cmd {
 		args = append(args, "--")
 		args = append(args, r.Topics...)
 	}
+	//#nosec G204 -- The command needs to be configurable.
 	cmd := exec.CommandContext(ctx, rosCmd, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -148,7 +154,7 @@ func (r *missionDataRecorder) startWatcher(
 
 func (r *missionDataRecorder) logFileWatchErr(err error) {
 	if err != nil {
-		r.Logger.Errorln("an error occured during file watching:", err)
+		r.Logger.Errorln("an error occurred during file watching:", err)
 	}
 }
 

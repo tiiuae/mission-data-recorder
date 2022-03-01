@@ -136,6 +136,7 @@ func TestConfigWatcher(t *testing.T) {
 			watcher.Recorder.Dir = tempDir
 			go func() {
 				defer close(watcherStopped)
+				//nolint:errorlint // Wrapped errors are deliberately ignored.
 				switch watcher.Start(watcherCtx) {
 				case nil, context.Canceled:
 				default:
