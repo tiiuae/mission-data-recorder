@@ -112,7 +112,7 @@ jobs:
             | tr '\n' ' '
           )
           env > "$GITHUB_ENV"
-          echo "lint_dirs='$lint_dirs'" >> "$GITHUB_ENV"
+          echo "lint_dirs=$lint_dirs" >> "$GITHUB_ENV"
 
       - uses: golangci/golangci-lint-action@v2
         with:
