@@ -103,6 +103,7 @@ jobs:
 
       - name: Prepare package list for linter
         run: |
+          source /opt/ros/galactic/setup.sh
           go generate
           lint_dirs=$(
             go list -f '{{.Dir}}' ./... \
