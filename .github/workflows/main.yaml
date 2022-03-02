@@ -101,9 +101,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Prepare package list for linter
+      - name: Prepare environment
+        shell: bash
         run: |
-          source /opt/ros/galactic/setup.sh
           go generate
           lint_dirs=$(
             go list -f '{{.Dir}}' ./... \
@@ -111,7 +111,8 @@ jobs:
             | grep -v '^msgs' \
             | tr '\n' ' '
           )
-          echo "lint_dirs='$lint_dirs'" >> "$GITHUB_ENV"
+          env > "$GITHUB_ENV"
+          echo "lint_dirs=$lint_dirs" >> "$GITHUB_ENV"
 
       - uses: golangci/golangci-lint-action@v2
         with:
