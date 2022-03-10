@@ -126,6 +126,7 @@ type configWatcher struct {
 
 	nextConfig chan *updatableConfig
 
+	// +checklocks:stopRecorderMutex
 	stopRecorder      context.CancelFunc
 	stopRecorderMutex sync.Mutex
 

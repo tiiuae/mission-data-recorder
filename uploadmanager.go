@@ -71,13 +71,18 @@ type uploaderInterface interface {
 }
 
 type uploadManager struct {
-	workerCount    *semaphore.Weighted
+	mutex sync.Mutex
+	// +checklocks:mutex
+	workerCount *semaphore.Weighted
+	// +checklocks:mutex
 	maxWorkerCount int
-	uploader       uploaderInterface
-	queue          bagQueue
-	mutex          sync.Mutex
-	logger         logger
-	wg             sync.WaitGroup
+	// +checklocks:mutex
+	uploader uploaderInterface
+	// +checklocks:mutex
+	queue bagQueue
+
+	logger logger
+	wg     sync.WaitGroup
 }
 
 func newUploadManager(workerCount int, uploader uploaderInterface, logger logger) *uploadManager {
@@ -97,7 +102,7 @@ func (m *uploadManager) LoadExistingBags(dir string) error {
 			m.logger.Errorf(`error during loading existing bags: failed to access "%s": %v`, dir, err)
 		} else if globRegex.MatchString(path[len(dir):]) {
 			if bag := newBagMetadata(path, 0, false); bag != nil {
-				m.queue = append(m.queue, bag)
+				m.queue = append(m.queue, bag) // +checklocksignore
 			}
 		}
 		return nil
@@ -152,6 +157,8 @@ func (m *uploadManager) uploadNextBag(ctx context.Context) {
 }
 
 func (m *uploadManager) StartAllWorkers(ctx context.Context) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	for i := 0; i < m.maxWorkerCount; i++ {
 		m.StartWorker(ctx)
 	}
@@ -192,6 +199,7 @@ func (m *uploadManager) AddBag(ctx context.Context, bag *bagMetadata) {
 	m.StartWorker(ctx)
 }
 
+// +checklocks:m.mutex
 func (m *uploadManager) nextBag() *bagMetadata {
 	if len(m.queue) == 0 {
 		return nil
