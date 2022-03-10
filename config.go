@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -11,12 +12,6 @@ import (
 	"github.com/tiiuae/rclgo/pkg/rclgo"
 	"gopkg.in/yaml.v3"
 )
-
-func onErr(err *error, f func() error) {
-	if *err != nil {
-		f() //nolint:errcheck
-	}
-}
 
 type topicList struct {
 	Topics []string
@@ -118,11 +113,12 @@ type uploadManagerInterface interface {
 }
 
 type configWatcher struct {
-	*rclgo.Node
+	sub        *rclgo.Subscription
 	RetryDelay time.Duration
 
-	Recorder      missionDataRecorder
-	UploadManager uploadManagerInterface
+	recorder      *missionDataRecorder
+	uploadManager uploadManagerInterface
+	diagnostics   *diagnosticsMonitor
 
 	nextConfig chan *updatableConfig
 
@@ -135,12 +131,18 @@ type configWatcher struct {
 }
 
 func newConfigWatcher(
-	ns, nodeName string,
+	node *rclgo.Node,
+	recorder *missionDataRecorder,
+	uploadManager uploadManagerInterface,
+	diagnostics *diagnosticsMonitor,
 	initConfig *updatableConfig,
-	ctx *rclgo.Context,
 ) (w *configWatcher, err error) {
 	w = &configWatcher{
-		RetryDelay: 5 * time.Second,
+		RetryDelay:    5 * time.Second,
+		recorder:      recorder,
+		uploadManager: uploadManager,
+		diagnostics:   diagnostics,
+
 		nextConfig: make(chan *updatableConfig, 1),
 	}
 	w.retryTimer = time.NewTimer(w.RetryDelay)
@@ -148,14 +150,13 @@ func newConfigWatcher(
 		<-w.retryTimer.C
 	}
 	w.nextConfig <- initConfig
-	w.Node, err = ctx.NewNode(nodeName, ns)
-	if err != nil {
-		return nil, err
-	}
-	defer onErr(&err, w.Node.Close)
-	_, err = w.Node.NewSubscription(
+	opts := rclgo.NewDefaultSubscriptionOptions()
+	opts.Qos.Durability = rclgo.RmwQosDurabilityPolicyTransientLocal
+	opts.Qos.Reliability = rclgo.RmwQosReliabilityPolicyReliable
+	w.sub, err = node.NewSubscriptionWithOpts(
 		"~/config",
 		std_msgs_msg.StringTypeSupport,
+		opts,
 		w.onUpdate,
 	)
 	if err != nil {
@@ -164,20 +165,19 @@ func newConfigWatcher(
 	return w, nil
 }
 
-func (w *configWatcher) Start(ctx context.Context) error {
-	errs := make(chan error, 1)
-	go func() {
-		defer close(errs)
-		errs <- w.Spin(ctx)
-	}()
+func (w *configWatcher) Close() error {
+	if err := w.sub.Close(); err != nil {
+		return fmt.Errorf("failed to close configWatcher: %w", err)
+	}
+	return nil
+}
+
+func (w *configWatcher) Run(ctx context.Context) error {
 	var currentConfig *updatableConfig
-	w.Logger().Info("starting mission-data-recorder")
+	w.sub.Node().Logger().Info("starting mission-data-recorder")
 	for {
 		select {
 		case <-ctx.Done():
-			if err := <-errs; err != nil {
-				return err
-			}
 			return ctx.Err()
 		case <-w.retryTimer.C:
 			w.retryTimerActive = false
@@ -195,32 +195,38 @@ func (w *configWatcher) Start(ctx context.Context) error {
 func (w *configWatcher) startRecorder(ctx context.Context, config *updatableConfig) {
 	startRecorder := w.applyConfig(config)
 	ctx = w.newRecorderContext(ctx)
-	w.UploadManager.StartWorker(ctx)
+	w.uploadManager.StartWorker(ctx)
 	if startRecorder {
-		err := w.Recorder.Start(ctx, w.UploadManager.AddBag)
+		w.diagnostics.ReportSuccess("recorder", "running")
+		err := w.recorder.Start(ctx, w.uploadManager.AddBag)
 		//nolint:errorlint // Wrapped errors are deliberately ignored.
 		switch err {
 		case nil, context.Canceled:
 		default:
-			w.Logger().Errorf("recorder stopped with an error, trying again in %v: %v", w.RetryDelay, err)
+			w.sub.Node().Logger().Errorf("recorder stopped with an error, trying again in %v: %v", w.RetryDelay, err)
+			w.diagnostics.ReportError("recorder", "failed: ", err)
 			w.retryTimerActive = true
 			w.retryTimer.Reset(w.RetryDelay)
 		}
+	} else {
+		w.diagnostics.ReportSuccess("recorder", "stopped")
 	}
 }
 
 func (w *configWatcher) onUpdate(s *rclgo.Subscription) {
 	var configYaml std_msgs_msg.String
 	if _, err := s.TakeMessage(&configYaml); err != nil {
-		w.Logger().Errorln("failed to read config from topic:", err)
+		w.sub.Node().Logger().Errorln("failed to read config from topic:", err)
+		w.diagnostics.ReportError("config", err)
 		return
 	}
 	config, err := parseUpdatableConfigYAML(configYaml.Data)
 	if err != nil {
-		w.Logger().Errorln("failed to parse config:", err)
+		w.sub.Node().Logger().Errorln("failed to parse config:", err)
+		w.diagnostics.ReportError("config", err)
 		return
 	}
-	w.Logger().Infoln("got new config:", configYaml.Data)
+	w.sub.Node().Logger().Infoln("got new config:", configYaml.Data)
 	w.stopRecording()
 	w.nextConfig <- config
 }
@@ -241,13 +247,14 @@ func (w *configWatcher) stopRecording() {
 }
 
 func (w *configWatcher) applyConfig(config *updatableConfig) (startRecorder bool) {
-	w.UploadManager.SetConfig(config.MaxUploadCount, config.CompressionMode)
-	w.Recorder.SizeThreshold = config.SizeThreshold
-	w.Recorder.ExtraArgs = config.ExtraArgs
+	defer w.diagnostics.ReportSuccess("config", "applied")
+	w.uploadManager.SetConfig(config.MaxUploadCount, config.CompressionMode)
+	w.recorder.SizeThreshold = config.SizeThreshold
+	w.recorder.ExtraArgs = config.ExtraArgs
 	if config.Topics.All {
-		w.Recorder.Topics = nil
+		w.recorder.Topics = nil
 		return true
 	}
-	w.Recorder.Topics = config.Topics.Topics
+	w.recorder.Topics = config.Topics.Topics
 	return len(config.Topics.Topics) != 0
 }

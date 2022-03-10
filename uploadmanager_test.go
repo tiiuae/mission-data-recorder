@@ -49,7 +49,7 @@ func TestUploadManager(t *testing.T) {
 			bagCount: 100,
 			done:     make(chan struct{}),
 		}
-		uploadMan = newUploadManager(workerCount, &uploader, fakeLogger{})
+		uploadMan = newUploadManager(workerCount, &uploader, fakeLogger{}, nil)
 		ctx       = context.Background()
 		//#nosec G404 -- Tests should be deterministic.
 		rnd = rand.New(rand.NewSource(42))

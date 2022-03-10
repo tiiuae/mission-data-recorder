@@ -88,6 +88,7 @@ func TestConfigWatcher(t *testing.T) {
 		watcherCtx, stopWatcher = context.WithCancel(context.Background())
 
 		rclctx                *rclgo.Context
+		recorderNode          *rclgo.Node
 		configPub, aPub, bPub *rclgo.Publisher
 
 		watcher *configWatcher
@@ -109,6 +110,8 @@ func TestConfigWatcher(t *testing.T) {
 		Convey("Create publishers", func() {
 			rclctx, err := rclgo.NewContext(0, nil)
 			So(err, ShouldBeNil)
+			recorderNode, err = rclctx.NewNode("mission_data_recorder", "/test")
+			So(err, ShouldBeNil)
 			configNode, err := rclctx.NewNode("config_node", "/test")
 			So(err, ShouldBeNil)
 			configPub, err = configNode.NewPublisher("mission_data_recorder/config", std_msgs_msg.StringTypeSupport, nil)
@@ -121,23 +124,23 @@ func TestConfigWatcher(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("Start configWatcher", func() {
-			var err error
+			diagnostics, err := newDiagnosticsMonitor(recorderNode)
+			So(err, ShouldBeNil)
 			watcher, err = newConfigWatcher(
-				"/test",
-				"mission_data_recorder",
+				recorderNode,
+				&missionDataRecorder{Dir: tempDir},
+				&fakeUploadManager{t: t},
+				diagnostics,
 				&updatableConfig{
 					SizeThreshold: defaultSizeThreshold,
 					Topics:        topicList{Topics: []string{"/test/a"}},
 				},
-				rclctx,
 			)
 			So(err, ShouldBeNil)
-			watcher.UploadManager = &fakeUploadManager{t: t}
-			watcher.Recorder.Dir = tempDir
 			go func() {
 				defer close(watcherStopped)
 				//nolint:errorlint // Wrapped errors are deliberately ignored.
-				switch watcher.Start(watcherCtx) {
+				switch watcher.Run(watcherCtx) {
 				case nil, context.Canceled:
 				default:
 					t.Error(err)

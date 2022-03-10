@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/hashicorp/go-multierror"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/pflag"
 	"github.com/tiiuae/go-configloader"
@@ -142,7 +144,22 @@ func run() (err error) {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	logger := rclgo.GetLogger(config.DeviceID).Child("mission_data_recorder")
+	rclctx, err := rclgo.NewContext(0, config.rosArgs)
+	if err != nil {
+		return fmt.Errorf("failed to create rcl context: %w", err)
+	}
+	defer rclctx.Close()
+	node, err := rclctx.NewNode("mission_data_recorder", config.DeviceID)
+	if err != nil {
+		return fmt.Errorf("failed to create node: %w", err)
+	}
+	defer node.Close()
+
+	diagnostics, err := newDiagnosticsMonitor(node)
+	if err != nil {
+		return fmt.Errorf("failed to create diagnostics monitor: %w", err)
+	}
+	defer diagnostics.Close()
 
 	initialConfig := &updatableConfig{
 		Topics:          config.Topics,
@@ -162,42 +179,54 @@ func run() (err error) {
 		CompressionMode: config.CompressionMode,
 		BackendURL:      config.BackendURL,
 	}
-	uploadMan := newUploadManager(config.MaxUploadCount, uploader, logger)
-
-	rclctx, err := rclgo.NewContext(0, config.rosArgs)
-	if err != nil {
-		return fmt.Errorf("failed to create rcl context: %w", err)
-	}
-	defer rclctx.Close()
+	uploadMan := newUploadManager(
+		config.MaxUploadCount,
+		uploader,
+		node.Logger(),
+		diagnostics,
+	)
 
 	configWatcher, err := newConfigWatcher(
-		config.DeviceID,
-		"mission_data_recorder",
+		node,
+		&missionDataRecorder{
+			Dir:    config.DestDir,
+			Logger: node.Logger(),
+		},
+		uploadMan,
+		diagnostics,
 		initialConfig,
-		rclctx,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create config watcher: %w", err)
 	}
 	defer configWatcher.Close()
-	configWatcher.UploadManager = uploadMan
-	configWatcher.Recorder.Dir = config.DestDir
-	configWatcher.Recorder.Logger = logger
 
 	if err = uploadMan.LoadExistingBags(config.DestDir); err != nil {
-		logger.Errorln("failed to load existing bags:", err)
+		node.Logger().Errorln("failed to load existing bags:", err)
 	}
 	uploadMan.StartAllWorkers(ctx)
 	defer uploadMan.Wait()
 
-	err = configWatcher.Start(ctx)
-	//nolint:errorlint // Wrapped errors are deliberately ignored.
-	switch err {
-	case nil, context.Canceled:
-		return nil
-	default:
-		return fmt.Errorf("config watcher stopped with an error: %w", err)
+	errs := make(chan error, 3)
+	runJob := func(name string, job func(ctx context.Context) error) {
+		defer func() {
+			if r := recover(); r != nil {
+				errs <- fmt.Errorf("panic: %v, stack: %s", r, debug.Stack())
+			}
+		}()
+		defer stop()
+		//nolint:errorlint // Wrapped errors are deliberately ignored.
+		switch err := job(ctx); err {
+		case nil, context.Canceled:
+			errs <- nil
+		default:
+			errs <- fmt.Errorf("%s returned an error: %v", name, err)
+		}
 	}
+	go runJob("rclgo", rclctx.Spin)
+	go runJob("diagnostics", diagnostics.Run)
+	go runJob("config watcher", configWatcher.Run)
+	return multierror.Append(<-errs, <-errs, <-errs).ErrorOrNil()
 }
 
 func main() {

@@ -83,14 +83,17 @@ type uploadManager struct {
 
 	logger logger
 	wg     sync.WaitGroup
+
+	diagnostics *diagnosticsMonitor
 }
 
-func newUploadManager(workerCount int, uploader uploaderInterface, logger logger) *uploadManager {
+func newUploadManager(workerCount int, uploader uploaderInterface, logger logger, diagnostics *diagnosticsMonitor) *uploadManager {
 	return &uploadManager{
 		workerCount:    semaphore.NewWeighted(int64(workerCount)),
 		maxWorkerCount: workerCount,
 		uploader:       uploader,
 		logger:         logger,
+		diagnostics:    diagnostics,
 	}
 }
 
@@ -147,9 +150,11 @@ func (m *uploadManager) uploadNextBag(ctx context.Context) {
 	err := uploader.UploadBag(ctx, bag)
 	if err == nil {
 		m.logger.Infof("bag '%s' uploaded successfully", bag.path)
+		m.diagnostics.ReportSuccess("bag uploader", "ok")
 		m.removeBagFiles(bag)
 	} else {
 		m.logger.Errorf("failed to upload bag '%s': %v", bag.path, err)
+		m.diagnostics.ReportError("bag uploader", "failing: ", err)
 		if errors.Is(err, errEmptyBag) {
 			m.removeBagFiles(bag)
 		}
