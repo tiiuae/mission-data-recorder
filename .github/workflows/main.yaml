@@ -97,7 +97,7 @@ jobs:
 
   run-linter:
     runs-on: ubuntu-latest
-    container: ghcr.io/tiiuae/tii-golang-ros:galactic-go1.17
+    container: ghcr.io/tiiuae/fog-ros-baseimage:builder-latest
     steps:
       - uses: actions/checkout@v2
 
