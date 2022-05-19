@@ -9,6 +9,7 @@ linters:
     # The following are not useful and/or produce too many false positives
     - cyclop
     - exhaustivestruct
+    - exhaustruct
     - forbidigo
     - forcetypeassert
     - funlen
@@ -26,6 +27,7 @@ linters:
     - nestif
     - nilnil
     - nlreturn
+    - nonamedreturns
     - paralleltest
     - tagliatelle
     - testpackage
