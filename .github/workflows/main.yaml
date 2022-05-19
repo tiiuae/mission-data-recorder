@@ -16,54 +16,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  tii-mission-data-recorder-deb:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Debian package
-        run: |
-          set -exu
-          ./build.sh .
-
-      - uses: jfrog/setup-jfrog-cli@v2
-        env:
-          JF_ARTIFACTORY_1: ${{ secrets.ARTIFACTORY_TOKEN }}
-
-      - name: Upload to Artifactory
-        env:
-          ARTIFACTORY_REPO: debian-public-local
-          DISTRIBUTION: focal
-          COMPONENT: fog-sw
-          ARCHITECTURE: amd64
-          BUILD_NAME: mission-data-recorder
-          CI: true
-        if: github.event_name == 'push'
-        run: |
-          set -exu
-          jfrog rt ping
-          pkg=$(find "$GITHUB_WORKSPACE" -name 'mission-data-recorder*.deb')
-          pkg_name=$(basename $pkg)
-          jfrog rt u --deb "$DISTRIBUTION/$COMPONENT/$ARCHITECTURE" \
-                     --target-props COMMIT="$GITHUB_SHA" \
-                     --build-name "$BUILD_NAME" \
-                     --build-number "$GITHUB_SHA" \
-                     "$pkg" \
-                     "$ARTIFACTORY_REPO/$pkg_name"
-          jfrog rt build-publish "$BUILD_NAME" "$GITHUB_SHA"
-          jfrog rt bpr "$BUILD_NAME" "$GITHUB_SHA" "$ARTIFACTORY_REPO" \
-                       --status dev \
-                       --comment "development build"
-
   build-docker-image:
     runs-on: ubuntu-latest
     steps:

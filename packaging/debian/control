@@ -1,6 +1,0 @@
-Package: mission-data-recorder
-Version: VERSION
-Maintainer: Jari Nippula <jarix@ssrc.tii.ae>
-Architecture: amd64
-Description: Mission data recorder for drone
-Depends: ca-certificates, ros-galactic-ros-core, ros-galactic-ros2bag, ros-galactic-rosbag2, sqlite3
