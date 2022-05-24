@@ -10,6 +10,11 @@ RUN rm -rf msgs && \
 
 FROM ghcr.io/tiiuae/fog-ros-baseimage:main
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends --no-upgrade \
+    ros-$ROS_DISTRO-rosbag2 && \
+    rm -rf /var/lib/apt/lists/*
+
 # By default all messages available in the repo are installed so that the
 # recorder could record as many message types as possible.
 ENV MESSAGE_PACKAGES=ros-$ROS_DISTRO-*-msgs
