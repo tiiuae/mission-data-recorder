@@ -208,19 +208,20 @@ func run() (err error) {
 	defer uploadMan.Wait()
 
 	errs := make(chan error, 3)
-	runJob := func(name string, job func(ctx context.Context) error) {
+	runJob := func(name string, job func(ctx context.Context) error) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				errs <- fmt.Errorf("panic: %v, stack: %s", r, debug.Stack())
+				err = fmt.Errorf("panic: %v, stack: %s", r, debug.Stack())
 			}
+			errs <- err
 		}()
 		defer stop()
 		//nolint:errorlint // Wrapped errors are deliberately ignored.
 		switch err := job(ctx); err {
 		case nil, context.Canceled:
-			errs <- nil
+			return nil
 		default:
-			errs <- fmt.Errorf("%s returned an error: %v", name, err)
+			return fmt.Errorf("%s returned an error: %v", name, err)
 		}
 	}
 	go runJob("rclgo", rclctx.Spin)
