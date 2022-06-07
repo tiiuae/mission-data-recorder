@@ -1,4 +1,4 @@
-FROM ghcr.io/tiiuae/fog-ros-baseimage:builder-DP-2016-dockerfiles-pkcs-11-updates AS builder
+FROM ghcr.io/tiiuae/fog-ros-baseimage:builder-latest AS builder
 
 WORKDIR /build
 COPY go.mod go.sum ./
@@ -8,7 +8,7 @@ RUN rm -rf msgs && \
     go generate && \
     go build -o mission-data-recorder
 
-FROM ghcr.io/tiiuae/fog-ros-baseimage:DP-2016-dockerfiles-pkcs-11-updates
+FROM ghcr.io/tiiuae/fog-ros-baseimage:stable
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-upgrade \
