@@ -8,7 +8,7 @@ RUN rm -rf msgs && \
     go generate && \
     go build -o mission-data-recorder
 
-FROM ghcr.io/tiiuae/fog-ros-baseimage:main
+FROM ghcr.io/tiiuae/fog-ros-baseimage:stable
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-upgrade \
