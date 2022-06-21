@@ -1,4 +1,4 @@
-FROM ghcr.io/tiiuae/fog-ros-baseimage:builder-latest AS builder
+FROM ghcr.io/tiiuae/fog-ros-baseimage:builder-3dcb78d AS builder
 
 WORKDIR /build
 COPY go.mod go.sum ./
@@ -8,7 +8,7 @@ RUN rm -rf msgs && \
     go generate && \
     go build -o mission-data-recorder
 
-FROM ghcr.io/tiiuae/fog-ros-baseimage:stable
+FROM ghcr.io/tiiuae/fog-ros-baseimage:sha-3dcb78d
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-upgrade \
